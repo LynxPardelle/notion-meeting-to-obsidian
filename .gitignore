@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+.notion-meeting-sync/
+node_modules/
+dist/
+.angular/
+.superpowers/
