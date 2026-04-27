@@ -45,6 +45,36 @@ npm start
 
 The Angular app calls the local backend. Start the backend before using the UI.
 
+## Docker
+
+Create a local `.env` file from `.env.example`. For Docker, keep your Windows vault path in `HOST_OBSIDIAN_VAULT_PATH`; the backend container writes to `/vault`.
+
+```powershell
+copy .env.example .env
+```
+
+Example Docker values:
+
+```txt
+NOTION_TOKEN=secret_xxx
+NOTION_SOURCE_ID=your_notion_database_id
+HOST_OBSIDIAN_VAULT_PATH=C:\Users\you\Documents\ObsidianVault
+OBSIDIAN_MEETINGS_FOLDER=Meetings
+```
+
+Run both services:
+
+```powershell
+docker compose up --build
+```
+
+Then open:
+
+- Frontend: `http://127.0.0.1:4200`
+- Backend health: `http://127.0.0.1:8765/health`
+
+The Compose file maps `HOST_OBSIDIAN_VAULT_PATH` to `/vault` and sets `OBSIDIAN_VAULT_PATH=/vault` inside the backend container. Do not put your Notion token in the Docker image.
+
 ## What The First Version Does
 
 - Queries a Notion database source through the official API.

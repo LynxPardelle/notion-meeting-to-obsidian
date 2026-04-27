@@ -5,7 +5,9 @@ __pycache__/
 *.pyc
 *.egg-info/
 .notion-meeting-sync/
+vault/
 node_modules/
 dist/
 .angular/
 .superpowers/
+*.log
