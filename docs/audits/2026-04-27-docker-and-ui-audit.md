@@ -8,7 +8,12 @@ Date: 2026-04-27
 - `npm run build` from `frontend`: passed.
 - `npm audit --omit=dev` from `frontend`: 0 production vulnerabilities.
 - `npm audit` from `frontend`: 6 moderate development-tooling vulnerabilities in Angular build dependencies, with no fix currently available from npm audit.
-- `docker --version`: failed because Docker is not installed or not available in `PATH`; container build/run was not executable on this machine.
+- `docker --version`: Docker 29.4.1.
+- `docker compose version`: Docker Compose v5.1.3.
+- `docker compose up --build -d`: passed after injecting Docker Desktop's CLI directory into `PATH`.
+- `docker compose ps`: backend is `healthy`; frontend is `Up`.
+- `http://127.0.0.1:8765/health`: returned `{"status":"ok"}`.
+- `http://127.0.0.1:4200`: returned HTTP 200.
 
 ## Audit Health Score
 
@@ -58,13 +63,6 @@ Pass. The UI reads as a restrained local editor rather than a generic AI-generat
 - Impact: Works for local Docker and local dev, but makes reverse proxy or alternate host deployments require a rebuild.
 - Recommendation: Use an Angular environment file or a runtime-served config file for `API_BASE_URL`.
 
-### [P2] Docker Build Not Verified Locally
-
-- Location: Docker environment
-- Category: Operations
-- Impact: Dockerfiles and Compose are present, but the image build was not proven on this machine because `docker` is unavailable.
-- Recommendation: After installing Docker Desktop, run `docker compose build` and `docker compose up`.
-
 ### [P3] Development Toolchain Has Moderate Audit Warnings
 
 - Location: `frontend/package-lock.json`
@@ -85,6 +83,7 @@ Pass. The UI reads as a restrained local editor rather than a generic AI-generat
 - Compose binds frontend and backend ports to `127.0.0.1`, matching the local-only security model.
 - Backend container runs as a non-root user and has a healthcheck.
 - Frontend runtime uses an unprivileged Nginx image.
+- Docker build and startup are verified with Docker Desktop.
 - Production frontend audit reports zero vulnerabilities.
 - The UI structure uses real landmarks (`main`, `aside`, `nav`, `header`) and native buttons.
 
@@ -93,5 +92,4 @@ Pass. The UI reads as a restrained local editor rather than a generic AI-generat
 1. **[P1] `/polish`** - Restore visible focus styles for the Markdown editor and interactive elements.
 2. **[P2] `/adapt`** - Increase touch target sizing and refine the mobile stacked editor layout.
 3. **[P2] `/harden`** - Move frontend API URL to runtime configuration and add screen-reader status announcements.
-4. **[P2] `/audit`** - Re-run after Docker Desktop is installed and `docker compose build/up` can be verified.
-5. **[P3] `/polish`** - Tokenize remaining hard-coded colors and revisit typography.
+4. **[P3] `/polish`** - Tokenize remaining hard-coded colors and revisit typography.
