@@ -44,15 +44,17 @@ def write_markdown(
     meetings_dir: Path,
     title: str,
     markdown: str,
+    subdir: Path | None = None,
     existing_path: Path | None = None,
     disambiguator: str | None = None,
 ) -> Path:
-    meetings_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = meetings_dir / subdir if subdir else meetings_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
     if existing_path and str(existing_path):
         path = existing_path
     else:
-        path = meetings_dir / safe_filename(title)
+        path = target_dir / safe_filename(title)
         if path.exists() and disambiguator:
-            path = meetings_dir / safe_filename(f"{title} - {disambiguator}")
+            path = target_dir / safe_filename(f"{title} - {disambiguator}")
     path.write_text(markdown, encoding="utf-8", newline="\n")
     return path

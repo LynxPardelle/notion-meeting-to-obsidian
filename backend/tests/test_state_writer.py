@@ -35,3 +35,10 @@ def test_write_markdown_disambiguates_new_file_when_title_exists(tmp_path: Path)
 
     assert first.name == "Demo.md"
     assert second.name == "Demo - page-2.md"
+
+
+def test_write_markdown_writes_to_subdir(tmp_path: Path):
+    path = write_markdown(tmp_path / "Meetings", "Child", "# Child\n", subdir=Path("Parent"))
+
+    assert path == tmp_path / "Meetings" / "Parent" / "Child.md"
+    assert path.read_text(encoding="utf-8") == "# Child\n"

@@ -61,12 +61,27 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/notes")
-    def list_notes() -> list[dict[str, str]]:
+    def list_notes() -> list[dict[str, Any]]:
         config = load_config()
         config.meetings_dir.mkdir(parents=True, exist_ok=True)
         notes = []
-        for path in sorted(config.meetings_dir.glob("*.md")):
-            notes.append({"name": path.stem, "path": str(path)})
+        def note_sort_key(path: Path) -> tuple[str, int, str]:
+            relative = path.relative_to(config.meetings_dir)
+            root_name = relative.parts[0]
+            root_stem = Path(root_name).stem
+            return (root_stem.casefold(), len(relative.parts), str(relative).casefold())
+
+        for path in sorted(config.meetings_dir.rglob("*.md"), key=note_sort_key):
+            relative = path.relative_to(config.meetings_dir)
+            notes.append(
+                {
+                    "name": path.stem,
+                    "path": str(path),
+                    "relative_path": str(relative),
+                    "depth": len(relative.parts) - 1,
+                    "parent": str(relative.parent) if relative.parent != Path(".") else None,
+                }
+            )
         return notes
 
     @app.get("/notes/read")

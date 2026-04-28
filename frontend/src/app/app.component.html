@@ -18,6 +18,8 @@
         type="button"
         *ngFor="let note of notes()"
         [class.active]="note.path === selectedPath()"
+        [class.child]="note.depth > 0"
+        [style.--note-depth]="note.depth"
         (click)="openNote(note)">
         <span>{{ note.name }}</span>
       </button>

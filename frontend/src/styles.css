@@ -117,6 +117,17 @@ button.secondary {
   white-space: nowrap;
 }
 
+.note-list button.child {
+  color: var(--muted);
+  padding-left: calc(14px + (var(--note-depth) * 18px));
+}
+
+.note-list button.child::before {
+  color: var(--line);
+  content: "└";
+  margin-right: 8px;
+}
+
 .note-list button.active,
 .note-list button:hover {
   background: #e8e0d4;

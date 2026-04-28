@@ -117,6 +117,6 @@ def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplic
 
     assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
     assert (tmp_path / "Meetings" / "Clase Python.md").exists()
-    assert (tmp_path / "Meetings" / "Proximas clases de Python.md").exists()
-    assert (tmp_path / "Meetings" / "Proximas clases de Python - child-2.md").exists()
-    assert (tmp_path / "Meetings" / "Ejercicios.md").exists()
+    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python.md").exists()
+    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python - child-2.md").exists()
+    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Ejercicios.md").exists()
