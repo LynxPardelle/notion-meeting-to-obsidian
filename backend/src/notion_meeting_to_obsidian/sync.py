@@ -63,6 +63,6 @@ class MeetingSyncService:
         try:
             return self.notion.query_database(self.config.notion_source_id)
         except NotionApiError as exc:
-            if exc.status != 404:
+            if exc.status not in {400, 404}:
                 raise
         return [self.notion.retrieve_page(self.config.notion_source_id)]

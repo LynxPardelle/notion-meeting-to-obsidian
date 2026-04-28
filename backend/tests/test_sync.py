@@ -44,3 +44,23 @@ def test_sync_accepts_page_source_when_database_is_not_found(tmp_path: Path):
     assert len(result.synced) == 1
     assert result.synced[0].title == "Single Meeting"
     assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
+
+
+def test_sync_accepts_page_source_when_notion_reports_page_not_database(tmp_path: Path):
+    notion = PageOnlyNotion()
+
+    def query_database(source_id: str):
+        raise NotionApiError("Provided ID is a page, not a database", status=400)
+
+    notion.query_database = query_database
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+
+    result = MeetingSyncService(config, notion=notion).sync(force=True)
+
+    assert len(result.synced) == 1
+    assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
