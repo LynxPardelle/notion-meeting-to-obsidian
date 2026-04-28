@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .config import Config, ConfigError
+from .notion import NotionApiError
 from .sync import MeetingSyncService
 
 
@@ -50,7 +51,10 @@ def create_app() -> FastAPI:
     @app.post("/sync")
     def sync(force: bool = False) -> dict[str, Any]:
         service = MeetingSyncService(load_config())
-        result = service.sync(force=force)
+        try:
+            result = service.sync(force=force)
+        except NotionApiError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         return {
             "synced": [note.__dict__ | {"file_path": str(note.file_path)} for note in result.synced],
             "skipped": [note.__dict__ | {"file_path": str(note.file_path)} for note in result.skipped],
@@ -84,7 +88,11 @@ def create_app() -> FastAPI:
     @app.post("/draft")
     def draft(payload: DraftRequest) -> dict[str, str]:
         service = MeetingSyncService(load_config())
-        return {"page_id": payload.page_id, "markdown": service.draft_page(payload.page_id)}
+        try:
+            markdown = service.draft_page(payload.page_id)
+        except NotionApiError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return {"page_id": payload.page_id, "markdown": markdown}
 
     return app
 

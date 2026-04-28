@@ -20,7 +20,7 @@ $env:OBSIDIAN_VAULT_PATH="C:\Users\you\Documents\ObsidianVault"
 $env:OBSIDIAN_MEETINGS_FOLDER="Meetings"
 ```
 
-`NOTION_TOKEN`, `NOTION_SOURCE_ID`, and `OBSIDIAN_VAULT_PATH` are required. The token is never stored in source control.
+`NOTION_TOKEN`, `NOTION_SOURCE_ID`, and `OBSIDIAN_VAULT_PATH` are required. `NOTION_SOURCE_ID` can be a Notion database ID or a single page ID. The token is never stored in source control.
 
 ## Backend
 
@@ -77,7 +77,7 @@ The Compose file maps `HOST_OBSIDIAN_VAULT_PATH` to `/vault` and sets `OBSIDIAN_
 
 ## What The First Version Does
 
-- Queries a Notion database source through the official API.
+- Queries a Notion database source or a single Notion page through the official API.
 - Detects new or changed pages using `last_edited_time`.
 - Converts common Notion blocks into Markdown.
 - Writes `.md` files into `OBSIDIAN_VAULT_PATH\OBSIDIAN_MEETINGS_FOLDER`.

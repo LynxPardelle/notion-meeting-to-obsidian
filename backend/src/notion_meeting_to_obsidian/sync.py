@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
-from .notion import NotionClient
+from .notion import NotionApiError, NotionClient
 from .state import SyncState
 from .writer import write_markdown
 
@@ -34,7 +34,7 @@ class MeetingSyncService:
         synced: list[SyncedNote] = []
         skipped: list[SyncedNote] = []
 
-        pages = self.notion.query_database(self.config.notion_source_id)
+        pages = self._source_pages()
         for page_summary in pages:
             page_id = page_summary["id"]
             last_edited_time = page_summary.get("last_edited_time", "")
@@ -58,3 +58,11 @@ class MeetingSyncService:
         page = self.notion.retrieve_page(page_id)
         blocks = self.notion.retrieve_block_children(page_id)
         return page_to_markdown(page, blocks)
+
+    def _source_pages(self) -> list[dict]:
+        try:
+            return self.notion.query_database(self.config.notion_source_id)
+        except NotionApiError as exc:
+            if exc.status != 404:
+                raise
+        return [self.notion.retrieve_page(self.config.notion_source_id)]

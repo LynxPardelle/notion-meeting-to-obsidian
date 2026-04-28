@@ -9,6 +9,10 @@ from urllib.request import Request, urlopen
 class NotionApiError(RuntimeError):
     """Raised when the Notion API returns an error."""
 
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+
 
 class NotionClient:
     base_url = "https://api.notion.com/v1"
@@ -34,7 +38,7 @@ class NotionClient:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             detail = exc.read().decode("utf-8")
-            raise NotionApiError(f"Notion API error {exc.code}: {detail}") from exc
+            raise NotionApiError(f"Notion API error {exc.code}: {detail}", status=exc.code) from exc
 
     def query_database(self, database_id: str) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
