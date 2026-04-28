@@ -47,7 +47,14 @@ class MeetingSyncService:
             page = self.notion.retrieve_page(page_id)
             blocks = self.notion.retrieve_block_children(page_id)
             markdown = page_to_markdown(page, blocks)
-            file_path = write_markdown(self.config.meetings_dir, extract_title(page), markdown)
+            existing_path = state.pages.get(page_id, {}).get("file_path")
+            file_path = write_markdown(
+                self.config.meetings_dir,
+                extract_title(page),
+                markdown,
+                existing_path=Path(existing_path) if existing_path else None,
+                disambiguator=page_id[:8],
+            )
             state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path)
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True))
 
@@ -65,4 +72,21 @@ class MeetingSyncService:
         except NotionApiError as exc:
             if exc.status not in {400, 404}:
                 raise
-        return [self.notion.retrieve_page(self.config.notion_source_id)]
+        return self._page_tree(self.config.notion_source_id)
+
+    def _page_tree(self, page_id: str) -> list[dict]:
+        pages: list[dict] = []
+        seen: set[str] = set()
+
+        def visit(current_page_id: str) -> None:
+            if current_page_id in seen:
+                return
+            seen.add(current_page_id)
+            page = self.notion.retrieve_page(current_page_id)
+            pages.append(page)
+            for block in self.notion.retrieve_block_children(current_page_id):
+                if block.get("type") == "child_page":
+                    visit(block["id"])
+
+        visit(page_id)
+        return pages

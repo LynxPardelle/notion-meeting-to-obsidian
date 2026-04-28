@@ -40,8 +40,19 @@ def safe_filename(title: str) -> str:
     return name[:120] + ".md"
 
 
-def write_markdown(meetings_dir: Path, title: str, markdown: str) -> Path:
+def write_markdown(
+    meetings_dir: Path,
+    title: str,
+    markdown: str,
+    existing_path: Path | None = None,
+    disambiguator: str | None = None,
+) -> Path:
     meetings_dir.mkdir(parents=True, exist_ok=True)
-    path = meetings_dir / safe_filename(title)
+    if existing_path and str(existing_path):
+        path = existing_path
+    else:
+        path = meetings_dir / safe_filename(title)
+        if path.exists() and disambiguator:
+            path = meetings_dir / safe_filename(f"{title} - {disambiguator}")
     path.write_text(markdown, encoding="utf-8", newline="\n")
     return path

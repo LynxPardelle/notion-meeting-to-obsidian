@@ -27,3 +27,11 @@ def test_write_markdown_creates_meetings_dir(tmp_path: Path):
 
     assert path == tmp_path / "Meetings" / "Demo.md"
     assert path.read_text(encoding="utf-8") == "# Demo\n"
+
+
+def test_write_markdown_disambiguates_new_file_when_title_exists(tmp_path: Path):
+    first = write_markdown(tmp_path / "Meetings", "Demo", "# Demo\n")
+    second = write_markdown(tmp_path / "Meetings", "Demo", "# Demo 2\n", disambiguator="page-2")
+
+    assert first.name == "Demo.md"
+    assert second.name == "Demo - page-2.md"

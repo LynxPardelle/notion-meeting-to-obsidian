@@ -10,6 +10,7 @@ class PageOnlyNotion:
         raise NotionApiError("not found", status=404)
 
     def retrieve_page(self, page_id: str):
+        title = "Single Meeting" if page_id == "page-1" else page_id
         return {
             "id": page_id,
             "url": "https://notion.so/page",
@@ -17,7 +18,7 @@ class PageOnlyNotion:
             "properties": {
                 "Name": {
                     "type": "title",
-                    "title": [{"plain_text": "Single Meeting", "annotations": {}}],
+                    "title": [{"plain_text": title, "annotations": {}}],
                 }
             },
         }
@@ -64,3 +65,58 @@ def test_sync_accepts_page_source_when_notion_reports_page_not_database(tmp_path
 
     assert len(result.synced) == 1
     assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
+
+
+class ParentPageWithChildrenNotion(PageOnlyNotion):
+    def retrieve_page(self, page_id: str):
+        titles = {
+            "parent": "Clase Python",
+            "child-1": "Proximas clases de Python",
+            "child-2": "Proximas clases de Python",
+            "grandchild": "Ejercicios",
+        }
+        return {
+            "id": page_id,
+            "url": f"https://notion.so/{page_id}",
+            "last_edited_time": f"2026-04-28T00:00:0{len(page_id)}.000Z",
+            "properties": {
+                "Name": {
+                    "type": "title",
+                    "title": [{"plain_text": titles[page_id], "annotations": {}}],
+                }
+            },
+        }
+
+    def retrieve_block_children(self, block_id: str):
+        if block_id == "parent":
+            return [
+                {"id": "child-1", "type": "child_page", "child_page": {"title": "Proximas clases de Python"}},
+                {"id": "child-2", "type": "child_page", "child_page": {"title": "Proximas clases de Python"}},
+            ]
+        if block_id == "child-1":
+            return [
+                {"id": "grandchild", "type": "child_page", "child_page": {"title": "Ejercicios"}},
+            ]
+        return [
+            {
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"plain_text": f"Body for {block_id}", "annotations": {}}]},
+            }
+        ]
+
+
+def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplicate_titles(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="parent",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+
+    result = MeetingSyncService(config, notion=ParentPageWithChildrenNotion()).sync(force=True)
+
+    assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
+    assert (tmp_path / "Meetings" / "Clase Python.md").exists()
+    assert (tmp_path / "Meetings" / "Proximas clases de Python.md").exists()
+    assert (tmp_path / "Meetings" / "Proximas clases de Python - child-2.md").exists()
+    assert (tmp_path / "Meetings" / "Ejercicios.md").exists()
