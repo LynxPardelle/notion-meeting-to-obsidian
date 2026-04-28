@@ -104,6 +104,13 @@ class ParentPageWithChildrenNotion(PageOnlyNotion):
             }
         ]
 
+    def search_pages(self):
+        return [
+            {"id": "parent", "parent": {"type": "workspace", "workspace": True}},
+            {"id": "child-1", "parent": {"type": "page_id", "page_id": "parent"}},
+            {"id": "child-2", "parent": {"type": "page_id", "page_id": "parent"}},
+        ]
+
 
 def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplicate_titles(tmp_path: Path):
     config = Config(
@@ -120,3 +127,19 @@ def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplic
     assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python.md").exists()
     assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python - child-2.md").exists()
     assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Ejercicios.md").exists()
+
+
+def test_sync_all_accessible_pages_uses_visible_roots_and_preserves_hierarchy(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="unused-when-sync-all-is-enabled",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+        sync_all_accessible=True,
+    )
+
+    result = MeetingSyncService(config, notion=ParentPageWithChildrenNotion()).sync(force=True)
+
+    assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
+    assert result.synced[1].parent_id == "parent"
+    assert result.synced[1].depth == 1

@@ -19,9 +19,9 @@
         *ngFor="let note of notes()"
         [class.active]="note.path === selectedPath()"
         [class.child]="note.depth > 0"
-        [style.--note-depth]="note.depth"
+        [style.padding-left.px]="note.depth > 0 ? 14 + note.depth * 22 : 14"
         (click)="openNote(note)">
-        <span>{{ note.name }}</span>
+        <span class="note-name">{{ note.name }}</span>
       </button>
     </nav>
   </aside>

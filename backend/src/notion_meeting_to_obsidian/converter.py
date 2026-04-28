@@ -25,11 +25,15 @@ def rich_text_to_markdown(items: list[dict[str, Any]]) -> str:
     return "".join(parts)
 
 
+def rich_text_to_plain_text(items: list[dict[str, Any]]) -> str:
+    return "".join(item.get("plain_text", "") for item in items)
+
+
 def extract_title(page: dict[str, Any]) -> str:
     properties = page.get("properties", {})
     for value in properties.values():
         if value.get("type") == "title":
-            title = rich_text_to_markdown(value.get("title", []))
+            title = rich_text_to_plain_text(value.get("title", []))
             if title:
                 return title
     return page.get("title") or "Untitled Meeting"

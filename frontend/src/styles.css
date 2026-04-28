@@ -110,6 +110,8 @@ button.secondary {
 .note-list button {
   background: transparent;
   color: var(--ink);
+  display: flex;
+  gap: 8px;
   justify-content: flex-start;
   overflow: hidden;
   text-align: left;
@@ -119,13 +121,20 @@ button.secondary {
 
 .note-list button.child {
   color: var(--muted);
-  padding-left: calc(14px + (var(--note-depth) * 18px));
+  font-size: 14px;
 }
 
 .note-list button.child::before {
-  color: var(--line);
-  content: "└";
-  margin-right: 8px;
+  color: var(--accent);
+  content: "↳";
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.note-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .note-list button.active,

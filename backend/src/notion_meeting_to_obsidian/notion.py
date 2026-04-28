@@ -53,6 +53,19 @@ class NotionClient:
     def retrieve_page(self, page_id: str) -> dict[str, Any]:
         return self._request("GET", f"/pages/{page_id}")
 
+    def search_pages(self) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        payload: dict[str, Any] = {
+            "page_size": 50,
+            "filter": {"value": "page", "property": "object"},
+        }
+        while True:
+            data = self._request("POST", "/search", payload)
+            results.extend(data.get("results", []))
+            if not data.get("has_more"):
+                return results
+            payload["start_cursor"] = data.get("next_cursor")
+
     def retrieve_block_children(self, block_id: str) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         start_cursor: str | None = None

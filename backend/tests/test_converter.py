@@ -1,4 +1,4 @@
-from notion_meeting_to_obsidian.converter import page_to_markdown, rich_text_to_markdown
+from notion_meeting_to_obsidian.converter import extract_title, page_to_markdown, rich_text_to_markdown
 
 
 def test_rich_text_to_markdown_preserves_annotations_and_links():
@@ -48,3 +48,16 @@ def test_page_to_markdown_generates_frontmatter_and_blocks():
     assert "# Weekly Sync" in markdown
     assert "## Action items" in markdown
     assert "- [ ] Send recap" in markdown
+
+
+def test_extract_title_uses_plain_text_without_markdown_annotations():
+    page = {
+        "properties": {
+            "Name": {
+                "type": "title",
+                "title": [{"plain_text": "2026-04-28T15:06", "annotations": {"bold": True}}],
+            }
+        }
+    }
+
+    assert extract_title(page) == "2026-04-28T15:06"

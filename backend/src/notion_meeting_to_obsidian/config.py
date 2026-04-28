@@ -16,6 +16,7 @@ class Config:
     obsidian_vault_path: Path
     obsidian_meetings_folder: str = "Meetings"
     sync_state_path: Path | None = None
+    sync_all_accessible: bool = False
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -35,6 +36,7 @@ class Config:
             obsidian_vault_path=Path(required["OBSIDIAN_VAULT_PATH"] or ""),
             obsidian_meetings_folder=os.getenv("OBSIDIAN_MEETINGS_FOLDER", "Meetings"),
             sync_state_path=Path(state_path) if state_path else None,
+            sync_all_accessible=os.getenv("NOTION_SYNC_ALL_ACCESSIBLE", "").lower() in {"1", "true", "yes"},
         )
 
     @property

@@ -75,6 +75,9 @@ class MeetingSyncService:
         return page_to_markdown(page, blocks)
 
     def _source_pages(self) -> list[dict]:
+        if self.config.sync_all_accessible:
+            return self._all_accessible_page_trees()
+
         try:
             return self.notion.query_database(self.config.notion_source_id)
         except NotionApiError as exc:
@@ -82,14 +85,30 @@ class MeetingSyncService:
                 raise
         return self._page_tree(self.config.notion_source_id)
 
-    def _page_tree(self, page_id: str) -> list[dict]:
+    def _all_accessible_page_trees(self) -> list[dict]:
+        visible_pages = self.notion.search_pages()
+        visible_ids = {page["id"] for page in visible_pages}
+        root_ids: list[str] = []
+        for page in visible_pages:
+            parent = page.get("parent", {})
+            parent_page_id = parent.get("page_id") if parent.get("type") == "page_id" else None
+            if parent_page_id not in visible_ids:
+                root_ids.append(page["id"])
+
         pages: list[dict] = []
         seen: set[str] = set()
+        for root_id in root_ids:
+            pages.extend(self._page_tree(root_id, seen=seen))
+        return pages
+
+    def _page_tree(self, page_id: str, seen: set[str] | None = None) -> list[dict]:
+        pages: list[dict] = []
+        visited = seen if seen is not None else set()
 
         def visit(current_page_id: str, parent_id: str | None = None, ancestors: tuple[str, ...] = ()) -> None:
-            if current_page_id in seen:
+            if current_page_id in visited:
                 return
-            seen.add(current_page_id)
+            visited.add(current_page_id)
             page = self.notion.retrieve_page(current_page_id)
             page["_sync_parent_id"] = parent_id
             page["_sync_depth"] = len(ancestors)

@@ -22,6 +22,8 @@ $env:OBSIDIAN_MEETINGS_FOLDER="Meetings"
 
 `NOTION_TOKEN`, `NOTION_SOURCE_ID`, and `OBSIDIAN_VAULT_PATH` are required. `NOTION_SOURCE_ID` can be a Notion database ID or a single page ID. The token is never stored in source control.
 
+Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with the integration, using each visible top-level page as a root.
+
 ## Backend
 
 ```powershell
