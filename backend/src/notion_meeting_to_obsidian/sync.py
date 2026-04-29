@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
@@ -36,6 +37,7 @@ class MeetingSyncService:
         state = SyncState.load(self.config.state_path)
         synced: list[SyncedNote] = []
         skipped: list[SyncedNote] = []
+        deleted: list[Path] = []
 
         pages = self._source_pages()
         active_page_ids: list[str] = []
@@ -55,7 +57,8 @@ class MeetingSyncService:
             blocks = self.notion.retrieve_block_children_recursive(page_id)
             markdown = page_to_markdown(page, blocks)
             subdir = self._subdir_for_page(page_summary)
-            existing_path = state.pages.get(page_id, {}).get("file_path")
+            previous_raw_path = state.pages.get(page_id, {}).get("file_path")
+            existing_path = previous_raw_path
             if existing_path and subdir and Path(existing_path).parent == self.config.meetings_dir:
                 existing_path = None
             file_path = write_markdown(
@@ -66,10 +69,13 @@ class MeetingSyncService:
                 existing_path=Path(existing_path) if existing_path else None,
                 disambiguator=page_id[:8],
             )
+            deleted.extend(self._delete_replaced_file(previous_raw_path, file_path))
             state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path)
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
-        deleted = self._delete_stale_files(state, active_page_ids) if self.config.delete_stale_synced_notes else []
+        if self.config.delete_stale_synced_notes:
+            deleted.extend(self._delete_stale_files(state, active_page_ids))
+            deleted.extend(self._delete_orphaned_generated_files(state, active_page_ids))
         state.mark_active(active_page_ids)
         state.save()
         return SyncResult(synced=synced, skipped=skipped, deleted=deleted)
@@ -139,7 +145,6 @@ class MeetingSyncService:
 
     def _delete_stale_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
         active = set(active_page_ids)
-        stale_child_dirs = self._active_root_child_dirs(state, active)
         deleted: list[Path] = []
         for page_id, page in list(state.pages.items()):
             if page_id in active:
@@ -148,28 +153,56 @@ class MeetingSyncService:
             if not raw_path:
                 continue
             file_path = Path(raw_path)
-            if self._is_safe_meeting_file(file_path) and self._is_stale_child_file(file_path, stale_child_dirs) and file_path.exists():
+            if self._is_safe_meeting_file(file_path) and file_path.exists():
                 file_path.unlink()
                 deleted.append(file_path)
                 self._remove_empty_parent_dirs(file_path.parent)
             state.pages.pop(page_id, None)
         return deleted
 
-    def _active_root_child_dirs(self, state: SyncState, active_page_ids: set[str]) -> set[Path]:
-        child_dirs: set[Path] = set()
-        meetings_dir = self.config.meetings_dir.resolve()
-        for page_id in active_page_ids:
-            raw_path = state.pages.get(page_id, {}).get("file_path")
-            if not raw_path:
-                continue
-            file_path = Path(raw_path).resolve()
-            if file_path.parent == meetings_dir:
-                child_dirs.add(meetings_dir / file_path.stem)
-        return child_dirs
+    def _delete_replaced_file(self, previous_raw_path: str | None, current_path: Path) -> list[Path]:
+        if not previous_raw_path:
+            return []
+        previous_path = Path(previous_raw_path)
+        try:
+            if previous_path.resolve() == current_path.resolve():
+                return []
+        except OSError:
+            return []
+        if not self._is_safe_meeting_file(previous_path) or not previous_path.exists():
+            return []
+        previous_path.unlink()
+        self._remove_empty_parent_dirs(previous_path.parent)
+        return [previous_path]
 
-    def _is_stale_child_file(self, file_path: Path, stale_child_dirs: set[Path]) -> bool:
-        resolved = file_path.resolve()
-        return any(child_dir == resolved.parent or child_dir in resolved.parents for child_dir in stale_child_dirs)
+    def _delete_orphaned_generated_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
+        active = set(active_page_ids)
+        protected_paths = {
+            Path(page["file_path"]).resolve()
+            for page_id, page in state.pages.items()
+            if page_id in active and page.get("file_path")
+        }
+        deleted: list[Path] = []
+        for file_path in self.config.meetings_dir.rglob("*.md"):
+            resolved = file_path.resolve()
+            if resolved in protected_paths:
+                continue
+            notion_id = self._frontmatter_notion_id(file_path)
+            if not notion_id:
+                continue
+            if notion_id not in active or resolved not in protected_paths:
+                file_path.unlink()
+                deleted.append(file_path)
+                self._remove_empty_parent_dirs(file_path.parent)
+        return deleted
+
+    def _frontmatter_notion_id(self, file_path: Path) -> str | None:
+        try:
+            text = file_path.read_text(encoding="utf-8")[:2048]
+        except OSError:
+            return None
+        match = re.search(r'^notion_id:\s*"([^"]+)"\s*$', text, flags=re.MULTILINE)
+        return match.group(1) if match else None
 
     def _is_safe_meeting_file(self, file_path: Path) -> bool:
         try:

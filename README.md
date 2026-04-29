@@ -2,6 +2,8 @@
 
 Local tool for syncing Notion Meeting AI notes into Obsidian-compatible Markdown.
 
+Full documentation is in [docs/application-guide.md](docs/application-guide.md).
+
 ## Stack
 
 - Python CLI and FastAPI backend
@@ -26,7 +28,7 @@ Use `NOTION_SOURCE_IDS=id_1,id_2` when you want to sync only a selected set of N
 
 Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with the integration, using each visible top-level page as a root.
 
-Set `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` to remove Markdown files that were created by a previous sync but no longer appear in the selected Notion source tree.
+`OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` is the default mirror behavior. It removes Markdown files that were created by a previous sync but no longer appear in the selected Notion source tree. Manual files that were never tracked by this app are left alone.
 
 ## Backend
 
@@ -84,9 +86,11 @@ The Compose file maps `HOST_OBSIDIAN_VAULT_PATH` to `/vault` and sets `OBSIDIAN_
 ## What The First Version Does
 
 - Queries a Notion database source or a single Notion page through the official API.
+- Recursively follows Notion child pages and writes them as Obsidian parent/child folders.
 - Detects new or changed pages using `last_edited_time`.
 - Converts common Notion blocks into Markdown.
 - Writes `.md` files into `OBSIDIAN_VAULT_PATH\OBSIDIAN_MEETINGS_FOLDER`.
+- Deletes stale synced files when the corresponding Notion page is no longer present.
 - Provides a local API and Angular editor for reviewing and saving notes.
 
 ## Tests

@@ -45,7 +45,8 @@ class Config:
             obsidian_meetings_folder=os.getenv("OBSIDIAN_MEETINGS_FOLDER", "Meetings"),
             sync_state_path=Path(state_path) if state_path else None,
             sync_all_accessible=os.getenv("NOTION_SYNC_ALL_ACCESSIBLE", "").lower() in {"1", "true", "yes"},
-            delete_stale_synced_notes=os.getenv("OBSIDIAN_DELETE_STALE_SYNCED_NOTES", "").lower() in {"1", "true", "yes"},
+            delete_stale_synced_notes=os.getenv("OBSIDIAN_DELETE_STALE_SYNCED_NOTES", "true").lower()
+            in {"1", "true", "yes"},
         )
 
     @property

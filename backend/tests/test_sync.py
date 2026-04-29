@@ -174,25 +174,61 @@ def test_sync_deletes_stale_synced_notes_when_enabled(tmp_path: Path):
     )
     meetings_dir = tmp_path / "Meetings"
     stale = meetings_dir / "Old Parent" / "Old Child.md"
-    unrelated_root = meetings_dir / "Unrelated Root.md"
+    stale_root = meetings_dir / "Unrelated Root.md"
+    orphan_generated = meetings_dir / "Old Generated.md"
+    duplicate_active = meetings_dir / "Duplicate Active.md"
+    manual_note = meetings_dir / "Manual Note.md"
     stale.parent.mkdir(parents=True)
     stale.write_text("# Old Child\n", encoding="utf-8")
-    unrelated_root.write_text("# Unrelated Root\n", encoding="utf-8")
+    stale_root.write_text("# Unrelated Root\n", encoding="utf-8")
+    orphan_generated.write_text('---\nnotion_id: "old-orphan"\n---\n# Old Generated\n', encoding="utf-8")
+    duplicate_active.write_text('---\nnotion_id: "page-1"\n---\n# Duplicate Active\n', encoding="utf-8")
+    manual_note.write_text("# Manual Note\n", encoding="utf-8")
     state_path = tmp_path / ".notion-meeting-sync" / "state.json"
     state_path.parent.mkdir(parents=True)
     state_path.write_text(
         '{"pages":{'
-        '"page-1":{"file_path":"' + (meetings_dir / "Old Parent.md").as_posix() + '","last_edited_time":"old"},'
+        '"page-1":{"file_path":"' + (meetings_dir / "Single Meeting.md").as_posix() + '","last_edited_time":"old"},'
         '"old-page":{"file_path":"' + stale.as_posix() + '","last_edited_time":"old"},'
-        '"unrelated-root":{"file_path":"' + unrelated_root.as_posix() + '","last_edited_time":"old"}'
+        '"unrelated-root":{"file_path":"' + stale_root.as_posix() + '","last_edited_time":"old"}'
         "}}",
         encoding="utf-8",
     )
 
     result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
 
-    assert result.deleted == [stale]
+    assert set(result.deleted) == {stale, stale_root, orphan_generated, duplicate_active}
     assert not stale.exists()
     assert not stale.parent.exists()
-    assert unrelated_root.exists()
-    assert (meetings_dir / "Old Parent.md").exists()
+    assert not stale_root.exists()
+    assert not orphan_generated.exists()
+    assert not duplicate_active.exists()
+    assert manual_note.exists()
+    assert (meetings_dir / "Single Meeting.md").exists()
+
+
+def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="parent",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+    meetings_dir = tmp_path / "Meetings"
+    previous_child_path = meetings_dir / "Proximas clases de Python.md"
+    previous_child_path.parent.mkdir(parents=True)
+    previous_child_path.write_text("# Proximas clases de Python\n", encoding="utf-8")
+    state_path = tmp_path / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{'
+        '"child-1":{"file_path":"' + previous_child_path.as_posix() + '","last_edited_time":"old"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    result = MeetingSyncService(config, notion=ParentPageWithChildrenNotion()).sync(force=True)
+
+    assert previous_child_path in result.deleted
+    assert not previous_child_path.exists()
+    assert (meetings_dir / "Clase Python" / "Proximas clases de Python.md").exists()
