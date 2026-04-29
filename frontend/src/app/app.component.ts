@@ -46,7 +46,10 @@ export class AppComponent {
 
   refreshNotes(): void {
     this.api.listNotes().subscribe({
-      next: (notes) => this.notes.set(notes),
+      next: (notes) => {
+        this.notes.set(notes);
+        this.collapsedKeys.set(this.collapsibleKeys(notes));
+      },
       error: (error) => this.fail(error)
     });
   }
@@ -132,6 +135,16 @@ export class AppComponent {
     const last = parts.at(-1) ?? note.name;
     parts[parts.length - 1] = last.replace(/\.md$/i, '');
     return parts;
+  }
+
+  private collapsibleKeys(notes: NoteSummary[]): Set<string> {
+    const keys = new Set<string>();
+    for (const note of notes) {
+      for (const key of this.parentKeys(note)) {
+        keys.add(key);
+      }
+    }
+    return keys;
   }
 
   private renderPreview(markdown: string): string {
