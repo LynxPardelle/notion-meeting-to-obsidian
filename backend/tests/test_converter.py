@@ -61,3 +61,50 @@ def test_extract_title_uses_plain_text_without_markdown_annotations():
     }
 
     assert extract_title(page) == "2026-04-28T15:06"
+
+
+def test_page_to_markdown_renders_nested_transcription_children():
+    page = {
+        "id": "meeting",
+        "url": "https://notion.so/meeting",
+        "last_edited_time": "2026-04-28T10:00:00.000Z",
+        "properties": {
+            "Name": {
+                "type": "title",
+                "title": [{"plain_text": "Today 15:06", "annotations": {}}],
+            }
+        },
+    }
+    blocks = [
+        {
+            "id": "transcription",
+            "type": "transcription",
+            "has_children": True,
+            "transcription": {},
+            "_children": [
+                {
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": []},
+                    "_children": [
+                        {
+                            "type": "heading_3",
+                            "heading_3": {"rich_text": [{"plain_text": "Action items", "annotations": {}}]},
+                        },
+                        {
+                            "type": "to_do",
+                            "to_do": {
+                                "checked": False,
+                                "rich_text": [{"plain_text": "Review QA", "annotations": {}}],
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+    ]
+
+    markdown = page_to_markdown(page, blocks)
+
+    assert "### Action items" in markdown
+    assert "- [ ] Review QA" in markdown
+    assert "    - [ ] Review QA" not in markdown

@@ -22,6 +22,20 @@ def test_state_tracks_incremental_sync(tmp_path: Path):
     assert reloaded.should_sync("page-1", "t2")
 
 
+def test_state_tracks_active_pages(tmp_path: Path):
+    state_path = tmp_path / "state.json"
+    state = SyncState.load(state_path)
+
+    state.mark_synced("page-1", "t1", tmp_path / "one.md")
+    state.mark_synced("old-page", "t1", tmp_path / "old.md")
+    state.mark_active(["page-1"])
+    state.save()
+
+    reloaded = SyncState.load(state_path)
+    assert reloaded.active_page_ids == ["page-1"]
+    assert set(reloaded.pages) == {"page-1", "old-page"}
+
+
 def test_write_markdown_creates_meetings_dir(tmp_path: Path):
     path = write_markdown(tmp_path / "Meetings", "Demo", "# Demo\n")
 

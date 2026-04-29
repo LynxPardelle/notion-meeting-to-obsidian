@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from .config import Config, ConfigError
 from .notion import NotionApiError
+from .state import SyncState
 from .sync import MeetingSyncService
 
 
@@ -64,6 +65,12 @@ def create_app() -> FastAPI:
     def list_notes() -> list[dict[str, Any]]:
         config = load_config()
         config.meetings_dir.mkdir(parents=True, exist_ok=True)
+        state = SyncState.load(config.state_path)
+        active_paths = {
+            Path(page["file_path"]).resolve()
+            for page_id, page in state.pages.items()
+            if not state.active_page_ids or page_id in state.active_page_ids
+        }
         notes = []
         def note_sort_key(path: Path) -> tuple[str, int, str]:
             relative = path.relative_to(config.meetings_dir)
@@ -72,6 +79,8 @@ def create_app() -> FastAPI:
             return (root_stem.casefold(), len(relative.parts), str(relative).casefold())
 
         for path in sorted(config.meetings_dir.rglob("*.md"), key=note_sort_key):
+            if active_paths and path.resolve() not in active_paths:
+                continue
             relative = path.relative_to(config.meetings_dir)
             notes.append(
                 {

@@ -76,3 +76,10 @@ class NotionClient:
             if not data.get("has_more"):
                 return results
             start_cursor = data.get("next_cursor")
+
+    def retrieve_block_children_recursive(self, block_id: str) -> list[dict[str, Any]]:
+        blocks = self.retrieve_block_children(block_id)
+        for block in blocks:
+            if block.get("has_children") and block.get("type") != "child_page":
+                block["_children"] = self.retrieve_block_children_recursive(block["id"])
+        return blocks

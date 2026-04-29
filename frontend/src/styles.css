@@ -124,11 +124,11 @@ button.secondary {
   font-size: 14px;
 }
 
-.note-list button.child::before {
+.node-marker {
   color: var(--accent);
-  content: "↳";
   flex: 0 0 auto;
   font-weight: 700;
+  width: 16px;
 }
 
 .note-name {

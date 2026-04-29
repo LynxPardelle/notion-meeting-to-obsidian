@@ -31,6 +31,9 @@ class PageOnlyNotion:
             }
         ]
 
+    def retrieve_block_children_recursive(self, block_id: str):
+        return self.retrieve_block_children(block_id)
+
 
 def test_sync_accepts_page_source_when_database_is_not_found(tmp_path: Path):
     config = Config(
@@ -143,3 +146,19 @@ def test_sync_all_accessible_pages_uses_visible_roots_and_preserves_hierarchy(tm
     assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
     assert result.synced[1].parent_id == "parent"
     assert result.synced[1].depth == 1
+
+
+def test_sync_accepts_multiple_selected_page_sources(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        notion_source_ids=("page-1", "page-2"),
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+
+    result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
+
+    assert [note.page_id for note in result.synced] == ["page-1", "page-2"]
+    assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
+    assert (tmp_path / "Meetings" / "page-2.md").exists()

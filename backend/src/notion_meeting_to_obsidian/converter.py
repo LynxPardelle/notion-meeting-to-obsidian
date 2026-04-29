@@ -61,28 +61,43 @@ def frontmatter(metadata: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def block_to_markdown(block: dict[str, Any]) -> str:
+def indent_markdown(markdown: str, depth: int) -> str:
+    if depth <= 0:
+        return markdown
+    indent = "  " * depth
+    return "\n".join(f"{indent}{line}" if line else line for line in markdown.splitlines())
+
+
+def child_blocks_to_markdown(block: dict[str, Any], depth: int) -> str:
+    children = block.get("_children", [])
+    return blocks_to_markdown(children, depth=depth) if children else ""
+
+
+def block_to_markdown(block: dict[str, Any], depth: int = 0) -> str:
     block_type = block.get("type")
     value = block.get(block_type or "", {})
     text = rich_text_to_markdown(value.get("rich_text", []))
+    child_depth = depth + 1 if block_type in {"bulleted_list_item", "numbered_list_item", "to_do"} else depth
+    children = child_blocks_to_markdown(block, child_depth)
+    suffix = f"\n{children}" if children else ""
 
     if block_type == "paragraph":
-        return text
+        return indent_markdown(text, depth) + suffix if text else children
     if block_type == "heading_1":
-        return f"# {text}"
+        return f"# {text}{suffix}"
     if block_type == "heading_2":
-        return f"## {text}"
+        return f"## {text}{suffix}"
     if block_type == "heading_3":
-        return f"### {text}"
+        return f"### {text}{suffix}"
     if block_type == "bulleted_list_item":
-        return f"- {text}"
+        return indent_markdown(f"- {text}", depth) + suffix
     if block_type == "numbered_list_item":
-        return f"1. {text}"
+        return indent_markdown(f"1. {text}", depth) + suffix
     if block_type == "to_do":
         checked = "x" if value.get("checked") else " "
-        return f"- [{checked}] {text}"
+        return indent_markdown(f"- [{checked}] {text}", depth) + suffix
     if block_type == "quote":
-        return "\n".join(f"> {line}" for line in text.splitlines() or [""])
+        return "\n".join(f"> {line}" for line in text.splitlines() or [""]) + suffix
     if block_type == "code":
         language = value.get("language") or ""
         return f"```{language}\n{text}\n```"
@@ -96,11 +111,11 @@ def block_to_markdown(block: dict[str, Any]) -> str:
     if block_type == "child_page":
         title = value.get("title", "Child page")
         return f"[[{title}]]"
-    return text
+    return indent_markdown(text, depth) + suffix if text else children
 
 
-def blocks_to_markdown(blocks: list[dict[str, Any]]) -> str:
-    rendered = [block_to_markdown(block).rstrip() for block in blocks]
+def blocks_to_markdown(blocks: list[dict[str, Any]], depth: int = 0) -> str:
+    rendered = [block_to_markdown(block, depth=depth).rstrip() for block in blocks]
     return "\n\n".join(line for line in rendered if line)
 
 

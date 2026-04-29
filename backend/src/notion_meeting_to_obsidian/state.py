@@ -10,13 +10,14 @@ from typing import Any
 class SyncState:
     path: Path
     pages: dict[str, dict[str, Any]] = field(default_factory=dict)
+    active_page_ids: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: Path) -> "SyncState":
         if not path.exists():
             return cls(path=path)
         data = json.loads(path.read_text(encoding="utf-8"))
-        return cls(path=path, pages=data.get("pages", {}))
+        return cls(path=path, pages=data.get("pages", {}), active_page_ids=data.get("active_page_ids", []))
 
     def should_sync(self, page_id: str, last_edited_time: str, force: bool = False) -> bool:
         if force:
@@ -30,7 +31,10 @@ class SyncState:
             "file_path": str(file_path),
         }
 
+    def mark_active(self, page_ids: list[str]) -> None:
+        self.active_page_ids = page_ids
+
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"pages": self.pages}
+        payload = {"active_page_ids": self.active_page_ids, "pages": self.pages}
         self.path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")

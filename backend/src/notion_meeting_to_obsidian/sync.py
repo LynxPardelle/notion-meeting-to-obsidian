@@ -37,8 +37,10 @@ class MeetingSyncService:
         skipped: list[SyncedNote] = []
 
         pages = self._source_pages()
+        active_page_ids: list[str] = []
         for page_summary in pages:
             page_id = page_summary["id"]
+            active_page_ids.append(page_id)
             parent_id = page_summary.get("_sync_parent_id")
             depth = page_summary.get("_sync_depth", 0)
             last_edited_time = page_summary.get("last_edited_time", "")
@@ -49,7 +51,7 @@ class MeetingSyncService:
                 continue
 
             page = self.notion.retrieve_page(page_id)
-            blocks = self.notion.retrieve_block_children(page_id)
+            blocks = self.notion.retrieve_block_children_recursive(page_id)
             markdown = page_to_markdown(page, blocks)
             subdir = self._subdir_for_page(page_summary)
             existing_path = state.pages.get(page_id, {}).get("file_path")
@@ -66,24 +68,29 @@ class MeetingSyncService:
             state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path)
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
+        state.mark_active(active_page_ids)
         state.save()
         return SyncResult(synced=synced, skipped=skipped)
 
     def draft_page(self, page_id: str) -> str:
         page = self.notion.retrieve_page(page_id)
-        blocks = self.notion.retrieve_block_children(page_id)
+        blocks = self.notion.retrieve_block_children_recursive(page_id)
         return page_to_markdown(page, blocks)
 
     def _source_pages(self) -> list[dict]:
         if self.config.sync_all_accessible:
             return self._all_accessible_page_trees()
 
-        try:
-            return self.notion.query_database(self.config.notion_source_id)
-        except NotionApiError as exc:
-            if exc.status not in {400, 404}:
-                raise
-        return self._page_tree(self.config.notion_source_id)
+        pages: list[dict] = []
+        seen: set[str] = set()
+        for source_id in self.config.notion_source_ids or (self.config.notion_source_id,):
+            try:
+                pages.extend(self.notion.query_database(source_id))
+            except NotionApiError as exc:
+                if exc.status not in {400, 404}:
+                    raise
+                pages.extend(self._page_tree(source_id, seen=seen))
+        return pages
 
     def _all_accessible_page_trees(self) -> list[dict]:
         visible_pages = self.notion.search_pages()
