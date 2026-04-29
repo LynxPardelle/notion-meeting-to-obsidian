@@ -28,7 +28,7 @@ Use `NOTION_SOURCE_IDS=id_1,id_2` when you want to sync only a selected set of N
 
 Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with the integration, using each visible top-level page as a root.
 
-`OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` is the default mirror behavior. It removes Markdown files that were created by a previous sync but no longer appear in the selected Notion source tree. Manual files that were never tracked by this app are left alone.
+`OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` is the default mirror behavior. It removes Markdown files inside the configured meetings folder when they are not part of the current Notion source tree. Keep manual notes outside that folder if they should never be touched by sync.
 
 ## Backend
 

@@ -44,18 +44,15 @@ The parent page keeps its own Markdown file. Its children are written inside a f
 
 ## Obsidian Mirror Behavior
 
-The Obsidian `Meetings` folder is treated as a mirror of the selected Notion source tree for files created by this app.
+The Obsidian `Meetings` folder is treated as a strict mirror of the selected Notion source tree.
 
-The app deletes a Markdown file only when all of these are true:
+When `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true`, the app deletes a Markdown file when all of these are true:
 
-- The file path is recorded in `.notion-meeting-sync/state.json`, or the file has app-generated frontmatter with `notion_id`.
-- The related Notion page no longer appears in the current selected source tree.
 - The file is inside the configured `Meetings` folder.
 - The file has a `.md` extension.
+- The file path is not one of the active output paths produced by the current Notion sync.
 
-Manual notes that were never recorded in the sync state are not deleted.
-
-This also cleans old files created by earlier app versions that may no longer be present in `state.json` but still contain `notion_id` frontmatter.
+This means manual `.md` files should not be stored directly inside the configured `Meetings` folder. Put manual notes elsewhere in the vault if they should never be touched by the sync.
 
 If a page moves from root to child, or from one parent to another, the old synced file is removed after the new file is written. This prevents duplicate notes such as an old root note plus the new nested note.
 
@@ -178,8 +175,8 @@ If a Notion page does not appear:
 If old files remain in Obsidian:
 
 - Confirm `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true`.
-- Confirm the old file was created by this app and either exists in `.notion-meeting-sync/state.json` or contains `notion_id` frontmatter.
 - Run a forced sync after deleting or unsharing the Notion page.
+- Confirm the file is inside `OBSIDIAN_MEETINGS_FOLDER`; the sync only cleans that folder.
 
 If Docker commands are not found on Windows:
 

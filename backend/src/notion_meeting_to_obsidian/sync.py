@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import re
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
@@ -75,7 +74,7 @@ class MeetingSyncService:
 
         if self.config.delete_stale_synced_notes:
             deleted.extend(self._delete_stale_files(state, active_page_ids))
-            deleted.extend(self._delete_orphaned_generated_files(state, active_page_ids))
+            deleted.extend(self._delete_unlisted_meeting_files(state, active_page_ids))
         state.mark_active(active_page_ids)
         state.save()
         return SyncResult(synced=synced, skipped=skipped, deleted=deleted)
@@ -175,7 +174,7 @@ class MeetingSyncService:
         self._remove_empty_parent_dirs(previous_path.parent)
         return [previous_path]
 
-    def _delete_orphaned_generated_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
+    def _delete_unlisted_meeting_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
         active = set(active_page_ids)
         protected_paths = {
             Path(page["file_path"]).resolve()
@@ -187,22 +186,10 @@ class MeetingSyncService:
             resolved = file_path.resolve()
             if resolved in protected_paths:
                 continue
-            notion_id = self._frontmatter_notion_id(file_path)
-            if not notion_id:
-                continue
-            if notion_id not in active or resolved not in protected_paths:
-                file_path.unlink()
-                deleted.append(file_path)
-                self._remove_empty_parent_dirs(file_path.parent)
+            file_path.unlink()
+            deleted.append(file_path)
+            self._remove_empty_parent_dirs(file_path.parent)
         return deleted
-
-    def _frontmatter_notion_id(self, file_path: Path) -> str | None:
-        try:
-            text = file_path.read_text(encoding="utf-8")[:2048]
-        except OSError:
-            return None
-        match = re.search(r'^notion_id:\s*"([^"]+)"\s*$', text, flags=re.MULTILINE)
-        return match.group(1) if match else None
 
     def _is_safe_meeting_file(self, file_path: Path) -> bool:
         try:

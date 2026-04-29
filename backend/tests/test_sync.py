@@ -197,13 +197,13 @@ def test_sync_deletes_stale_synced_notes_when_enabled(tmp_path: Path):
 
     result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
 
-    assert set(result.deleted) == {stale, stale_root, orphan_generated, duplicate_active}
+    assert set(result.deleted) == {stale, stale_root, orphan_generated, duplicate_active, manual_note}
     assert not stale.exists()
     assert not stale.parent.exists()
     assert not stale_root.exists()
     assert not orphan_generated.exists()
     assert not duplicate_active.exists()
-    assert manual_note.exists()
+    assert not manual_note.exists()
     assert (meetings_dir / "Single Meeting.md").exists()
 
 
