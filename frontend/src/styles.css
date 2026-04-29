@@ -136,6 +136,27 @@ button.secondary {
   width: 16px;
 }
 
+.node-spacer,
+.tree-toggle {
+  flex: 0 0 auto;
+  width: 18px;
+}
+
+.tree-toggle {
+  align-items: center;
+  border-radius: 4px;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+}
+
+.tree-toggle:hover {
+  background: rgba(47, 111, 115, 0.12);
+}
+
 .note-content {
   display: flex;
   flex-direction: column;

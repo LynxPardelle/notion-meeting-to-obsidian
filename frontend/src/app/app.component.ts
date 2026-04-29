@@ -16,6 +16,7 @@ export class AppComponent {
   readonly markdown = signal('');
   readonly status = signal('Ready');
   readonly busy = signal(false);
+  readonly collapsedKeys = signal<Set<string>>(new Set());
 
   readonly selectedName = computed(() => {
     const path = this.selectedPath();
@@ -23,6 +24,7 @@ export class AppComponent {
   });
 
   readonly preview = computed(() => this.renderPreview(this.markdown()));
+  readonly visibleNotes = computed(() => this.notes().filter((note) => !this.isHiddenByCollapsedAncestor(note)));
 
   constructor(private readonly api: ApiService) {
     this.refreshNotes();
@@ -85,10 +87,51 @@ export class AppComponent {
     this.markdown.set(value);
   }
 
+  hasChildren(note: NoteSummary): boolean {
+    const key = this.treeKey(note);
+    return this.notes().some((candidate) => this.parentKeys(candidate).includes(key));
+  }
+
+  isCollapsed(note: NoteSummary): boolean {
+    return this.collapsedKeys().has(this.treeKey(note));
+  }
+
+  toggleCollapsed(note: NoteSummary, event: Event): void {
+    event.stopPropagation();
+    const key = this.treeKey(note);
+    const next = new Set(this.collapsedKeys());
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    this.collapsedKeys.set(next);
+  }
+
   private fail(error: unknown): void {
     this.busy.set(false);
     const message = error instanceof Error ? error.message : 'Request failed';
     this.status.set(message);
+  }
+
+  private isHiddenByCollapsedAncestor(note: NoteSummary): boolean {
+    return this.parentKeys(note).some((key) => this.collapsedKeys().has(key));
+  }
+
+  private parentKeys(note: NoteSummary): string[] {
+    const parts = this.relativeParts(note);
+    return parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('/'));
+  }
+
+  private treeKey(note: NoteSummary): string {
+    return this.relativeParts(note).join('/');
+  }
+
+  private relativeParts(note: NoteSummary): string[] {
+    const parts = note.relative_path.split(/[\\/]/).filter(Boolean);
+    const last = parts.at(-1) ?? note.name;
+    parts[parts.length - 1] = last.replace(/\.md$/i, '');
+    return parts;
   }
 
   private renderPreview(markdown: string): string {

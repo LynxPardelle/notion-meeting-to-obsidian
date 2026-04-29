@@ -16,11 +16,24 @@
     <nav class="note-list" aria-label="Synced notes">
       <button
         type="button"
-        *ngFor="let note of notes()"
+        *ngFor="let note of visibleNotes()"
         [class.active]="note.path === selectedPath()"
         [class.child]="note.depth > 0"
         (click)="openNote(note)">
+        <span class="node-spacer" *ngIf="note.depth === 0 && !hasChildren(note)" aria-hidden="true"></span>
         <span class="node-marker" *ngIf="note.depth > 0" aria-hidden="true">↳</span>
+        <span
+          class="tree-toggle"
+          *ngIf="hasChildren(note)"
+          role="button"
+          tabindex="0"
+          [attr.aria-label]="isCollapsed(note) ? 'Expand note group' : 'Collapse note group'"
+          [attr.aria-expanded]="!isCollapsed(note)"
+          (click)="toggleCollapsed(note, $event)"
+          (keydown.enter)="toggleCollapsed(note, $event)"
+          (keydown.space)="toggleCollapsed(note, $event)">
+          {{ isCollapsed(note) ? '▸' : '▾' }}
+        </span>
         <span class="note-content">
           <span class="note-parent" *ngIf="note.depth > 0">{{ note.parent }}</span>
           <span class="note-name">{{ note.name }}</span>
