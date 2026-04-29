@@ -19,10 +19,12 @@
         *ngFor="let note of notes()"
         [class.active]="note.path === selectedPath()"
         [class.child]="note.depth > 0"
-        [style.padding-left.px]="note.depth > 0 ? 18 + note.depth * 30 : 14"
         (click)="openNote(note)">
         <span class="node-marker" *ngIf="note.depth > 0" aria-hidden="true">↳</span>
-        <span class="note-name">{{ note.name }}</span>
+        <span class="note-content">
+          <span class="note-parent" *ngIf="note.depth > 0">{{ note.parent }}</span>
+          <span class="note-name">{{ note.name }}</span>
+        </span>
       </button>
     </nav>
   </aside>

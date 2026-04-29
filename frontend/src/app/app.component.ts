@@ -33,7 +33,8 @@ export class AppComponent {
     this.status.set('Syncing Notion...');
     this.api.sync(false).subscribe({
       next: (result) => {
-        this.status.set(`${result.synced.length} synced, ${result.skipped.length} skipped`);
+        const deleted = result.deleted?.length ?? 0;
+        this.status.set(`${result.synced.length} synced, ${result.skipped.length} skipped, ${deleted} removed`);
         this.refreshNotes();
       },
       error: (error) => this.fail(error),

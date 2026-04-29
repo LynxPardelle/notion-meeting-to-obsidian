@@ -120,8 +120,13 @@ button.secondary {
 }
 
 .note-list button.child {
+  align-items: flex-start;
+  border-left: 2px solid var(--accent);
   color: var(--muted);
   font-size: 14px;
+  margin-left: 18px;
+  padding-left: 12px;
+  width: calc(100% - 18px);
 }
 
 .node-marker {
@@ -129,6 +134,20 @@ button.secondary {
   flex: 0 0 auto;
   font-weight: 700;
   width: 16px;
+}
+
+.note-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.note-parent {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .note-name {

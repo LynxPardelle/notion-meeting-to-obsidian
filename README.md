@@ -26,6 +26,8 @@ Use `NOTION_SOURCE_IDS=id_1,id_2` when you want to sync only a selected set of N
 
 Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with the integration, using each visible top-level page as a root.
 
+Set `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` to remove Markdown files that were created by a previous sync but no longer appear in the selected Notion source tree.
+
 ## Backend
 
 ```powershell

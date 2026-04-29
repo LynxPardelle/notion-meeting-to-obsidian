@@ -162,3 +162,37 @@ def test_sync_accepts_multiple_selected_page_sources(tmp_path: Path):
     assert [note.page_id for note in result.synced] == ["page-1", "page-2"]
     assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
     assert (tmp_path / "Meetings" / "page-2.md").exists()
+
+
+def test_sync_deletes_stale_synced_notes_when_enabled(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+        delete_stale_synced_notes=True,
+    )
+    meetings_dir = tmp_path / "Meetings"
+    stale = meetings_dir / "Old Parent" / "Old Child.md"
+    unrelated_root = meetings_dir / "Unrelated Root.md"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("# Old Child\n", encoding="utf-8")
+    unrelated_root.write_text("# Unrelated Root\n", encoding="utf-8")
+    state_path = tmp_path / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{'
+        '"page-1":{"file_path":"' + (meetings_dir / "Old Parent.md").as_posix() + '","last_edited_time":"old"},'
+        '"old-page":{"file_path":"' + stale.as_posix() + '","last_edited_time":"old"},'
+        '"unrelated-root":{"file_path":"' + unrelated_root.as_posix() + '","last_edited_time":"old"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
+
+    assert result.deleted == [stale]
+    assert not stale.exists()
+    assert not stale.parent.exists()
+    assert unrelated_root.exists()
+    assert (meetings_dir / "Old Parent.md").exists()

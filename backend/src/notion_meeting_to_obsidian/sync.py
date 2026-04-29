@@ -24,6 +24,7 @@ class SyncedNote:
 class SyncResult:
     synced: list[SyncedNote]
     skipped: list[SyncedNote]
+    deleted: list[Path] | None = None
 
 
 class MeetingSyncService:
@@ -68,9 +69,10 @@ class MeetingSyncService:
             state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path)
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
+        deleted = self._delete_stale_files(state, active_page_ids) if self.config.delete_stale_synced_notes else []
         state.mark_active(active_page_ids)
         state.save()
-        return SyncResult(synced=synced, skipped=skipped)
+        return SyncResult(synced=synced, skipped=skipped, deleted=deleted)
 
     def draft_page(self, page_id: str) -> str:
         page = self.notion.retrieve_page(page_id)
@@ -134,3 +136,55 @@ class MeetingSyncService:
             return None
         parts = [title for title in ancestor_titles if title]
         return Path(*parts) if parts else None
+
+    def _delete_stale_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
+        active = set(active_page_ids)
+        stale_child_dirs = self._active_root_child_dirs(state, active)
+        deleted: list[Path] = []
+        for page_id, page in list(state.pages.items()):
+            if page_id in active:
+                continue
+            raw_path = page.get("file_path")
+            if not raw_path:
+                continue
+            file_path = Path(raw_path)
+            if self._is_safe_meeting_file(file_path) and self._is_stale_child_file(file_path, stale_child_dirs) and file_path.exists():
+                file_path.unlink()
+                deleted.append(file_path)
+                self._remove_empty_parent_dirs(file_path.parent)
+            state.pages.pop(page_id, None)
+        return deleted
+
+    def _active_root_child_dirs(self, state: SyncState, active_page_ids: set[str]) -> set[Path]:
+        child_dirs: set[Path] = set()
+        meetings_dir = self.config.meetings_dir.resolve()
+        for page_id in active_page_ids:
+            raw_path = state.pages.get(page_id, {}).get("file_path")
+            if not raw_path:
+                continue
+            file_path = Path(raw_path).resolve()
+            if file_path.parent == meetings_dir:
+                child_dirs.add(meetings_dir / file_path.stem)
+        return child_dirs
+
+    def _is_stale_child_file(self, file_path: Path, stale_child_dirs: set[Path]) -> bool:
+        resolved = file_path.resolve()
+        return any(child_dir == resolved.parent or child_dir in resolved.parents for child_dir in stale_child_dirs)
+
+    def _is_safe_meeting_file(self, file_path: Path) -> bool:
+        try:
+            resolved = file_path.resolve()
+            meetings_dir = self.config.meetings_dir.resolve()
+        except OSError:
+            return False
+        return resolved.suffix == ".md" and meetings_dir in resolved.parents
+
+    def _remove_empty_parent_dirs(self, start_dir: Path) -> None:
+        meetings_dir = self.config.meetings_dir.resolve()
+        current = start_dir.resolve()
+        while current != meetings_dir and meetings_dir in current.parents:
+            try:
+                current.rmdir()
+            except OSError:
+                return
+            current = current.parent

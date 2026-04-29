@@ -18,6 +18,7 @@ export interface ReadNoteResponse {
 export interface SyncResponse {
   synced: Array<{ page_id: string; title: string; file_path: string; changed: boolean; parent_id: string | null; depth: number }>;
   skipped: Array<{ page_id: string; title: string; file_path: string; changed: boolean; parent_id: string | null; depth: number }>;
+  deleted?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

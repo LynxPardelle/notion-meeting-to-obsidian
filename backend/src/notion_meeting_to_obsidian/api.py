@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
         return {
             "synced": [note.__dict__ | {"file_path": str(note.file_path)} for note in result.synced],
             "skipped": [note.__dict__ | {"file_path": str(note.file_path)} for note in result.skipped],
+            "deleted": [str(path) for path in result.deleted or []],
         }
 
     @app.get("/notes")
