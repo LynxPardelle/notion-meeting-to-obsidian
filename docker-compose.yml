@@ -21,4 +21,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "127.0.0.1:4200:8080"
+      - "127.0.0.1:47863:8080"

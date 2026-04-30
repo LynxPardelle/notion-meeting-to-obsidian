@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
@@ -113,8 +114,24 @@ export class AppComponent {
 
   private fail(error: unknown): void {
     this.busy.set(false);
-    const message = error instanceof Error ? error.message : 'Request failed';
+    const message = this.errorMessage(error);
     this.status.set(message);
+  }
+
+  private errorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const detail = error.error?.detail;
+      if (typeof detail === 'string' && detail.trim()) {
+        return detail;
+      }
+      if (detail) {
+        return JSON.stringify(detail);
+      }
+      if (error.message) {
+        return error.message;
+      }
+    }
+    return error instanceof Error ? error.message : 'Request failed';
   }
 
   private isHiddenByCollapsedAncestor(note: NoteSummary): boolean {
