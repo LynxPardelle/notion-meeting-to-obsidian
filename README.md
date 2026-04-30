@@ -4,6 +4,8 @@ Local tool for syncing Notion Meeting AI notes into Obsidian-compatible Markdown
 
 Full documentation is in [docs/application-guide.md](docs/application-guide.md).
 
+For a fresh install from GitHub on another computer, follow [docs/setup-from-github.md](docs/setup-from-github.md).
+
 ## Stack
 
 - Python CLI and FastAPI backend
