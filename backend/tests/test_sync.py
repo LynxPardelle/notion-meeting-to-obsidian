@@ -126,8 +126,8 @@ def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplic
     result = MeetingSyncService(config, notion=ParentPageWithChildrenNotion()).sync(force=True)
 
     assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
-    assert (tmp_path / "Meetings" / "Clase Python.md").exists()
-    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python.md").exists()
+    assert (tmp_path / "Meetings" / "Clase Python" / "Clase Python.md").exists()
+    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Proximas clases de Python.md").exists()
     assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python - child-2.md").exists()
     assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Ejercicios.md").exists()
 
@@ -231,4 +231,4 @@ def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path)
 
     assert previous_child_path in result.deleted
     assert not previous_child_path.exists()
-    assert (meetings_dir / "Clase Python" / "Proximas clases de Python.md").exists()
+    assert (meetings_dir / "Clase Python" / "Proximas clases de Python" / "Proximas clases de Python.md").exists()

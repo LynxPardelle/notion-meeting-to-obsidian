@@ -74,22 +74,29 @@ def create_app() -> FastAPI:
         }
         notes = []
         def note_sort_key(path: Path) -> tuple[str, int, str]:
-            relative = path.relative_to(config.meetings_dir)
+            relative = display_relative_path(path.relative_to(config.meetings_dir))
             root_name = relative.parts[0]
             root_stem = Path(root_name).stem
             return (root_stem.casefold(), len(relative.parts), str(relative).casefold())
+
+        def display_relative_path(relative: Path) -> Path:
+            parts = list(relative.parts)
+            if len(parts) >= 2 and Path(parts[-1]).stem == parts[-2]:
+                return Path(*parts[:-2], parts[-1]) if len(parts) > 2 else Path(parts[-1])
+            return relative
 
         for path in sorted(config.meetings_dir.rglob("*.md"), key=note_sort_key):
             if active_paths and path.resolve() not in active_paths:
                 continue
             relative = path.relative_to(config.meetings_dir)
+            display_relative = display_relative_path(relative)
             notes.append(
                 {
                     "name": path.stem,
                     "path": str(path),
-                    "relative_path": str(relative),
-                    "depth": len(relative.parts) - 1,
-                    "parent": str(relative.parent) if relative.parent != Path(".") else None,
+                    "relative_path": str(display_relative),
+                    "depth": len(display_relative.parts) - 1,
+                    "parent": str(display_relative.parent) if display_relative.parent != Path(".") else None,
                 }
             )
         return notes

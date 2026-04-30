@@ -35,12 +35,12 @@ Output in Obsidian:
 
 ```txt
 Meetings/
-  Documento Padre.md
   Documento Padre/
+    Documento Padre.md
     Nota Hijo.md
 ```
 
-The parent page keeps its own Markdown file. Its children are written inside a folder with the same safe filename stem as the parent.
+When a Notion page has child pages, the parent Markdown file is written inside its own folder. This keeps Obsidian from showing a same-name folder and same-name note side by side at the root level.
 
 ## Obsidian Mirror Behavior
 

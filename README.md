@@ -86,7 +86,7 @@ The Compose file maps `HOST_OBSIDIAN_VAULT_PATH` to `/vault` and sets `OBSIDIAN_
 ## What The First Version Does
 
 - Queries a Notion database source or a single Notion page through the official API.
-- Recursively follows Notion child pages and writes them as Obsidian parent/child folders.
+- Recursively follows Notion child pages and writes parent pages inside their own child folders for cleaner Obsidian browsing.
 - Detects new or changed pages using `last_edited_time`.
 - Converts common Notion blocks into Markdown.
 - Writes `.md` files into `OBSIDIAN_VAULT_PATH\OBSIDIAN_MEETINGS_FOLDER`.

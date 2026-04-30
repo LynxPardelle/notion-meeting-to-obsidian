@@ -47,18 +47,20 @@ class MeetingSyncService:
             depth = page_summary.get("_sync_depth", 0)
             last_edited_time = page_summary.get("last_edited_time", "")
             title = extract_title(page_summary)
-            previous_path = Path(state.pages.get(page_id, {}).get("file_path", ""))
-            if not state.should_sync(page_id, last_edited_time, force=force):
+            subdir = self._subdir_for_page(page_summary)
+            target_dir = self.config.meetings_dir / subdir if subdir else self.config.meetings_dir
+            previous_raw_path = state.pages.get(page_id, {}).get("file_path")
+            previous_path = Path(previous_raw_path or "")
+            layout_changed = bool(previous_raw_path) and Path(previous_raw_path).parent != target_dir
+            if not state.should_sync(page_id, last_edited_time, force=force) and not layout_changed:
                 skipped.append(SyncedNote(page_id, title, previous_path, changed=False, parent_id=parent_id, depth=depth))
                 continue
 
             page = self.notion.retrieve_page(page_id)
             blocks = self.notion.retrieve_block_children_recursive(page_id)
             markdown = page_to_markdown(page, blocks)
-            subdir = self._subdir_for_page(page_summary)
-            previous_raw_path = state.pages.get(page_id, {}).get("file_path")
             existing_path = previous_raw_path
-            if existing_path and subdir and Path(existing_path).parent == self.config.meetings_dir:
+            if existing_path and Path(existing_path).parent != target_dir:
                 existing_path = None
             file_path = write_markdown(
                 self.config.meetings_dir,
@@ -127,20 +129,27 @@ class MeetingSyncService:
             page["_sync_parent_id"] = parent_id
             page["_sync_depth"] = len(ancestors)
             page["_sync_ancestor_titles"] = list(ancestors)
+            child_page_blocks = [
+                block for block in self.notion.retrieve_block_children(current_page_id) if block.get("type") == "child_page"
+            ]
+            page["_sync_has_children"] = bool(child_page_blocks)
             pages.append(page)
-            for block in self.notion.retrieve_block_children(current_page_id):
-                if block.get("type") == "child_page":
-                    visit(block["id"], current_page_id, ancestors + (extract_title(page),))
+            for block in child_page_blocks:
+                visit(block["id"], current_page_id, ancestors + (extract_title(page),))
 
         visit(page_id)
         return pages
 
     def _subdir_for_page(self, page_summary: dict) -> Path | None:
         ancestor_titles = page_summary.get("_sync_ancestor_titles", [])
-        if not ancestor_titles:
-            return None
         parts = [title for title in ancestor_titles if title]
-        return Path(*parts) if parts else None
+        if page_summary.get("_sync_has_children"):
+            title = extract_title(page_summary)
+            if title:
+                parts.append(title)
+        if not parts:
+            return None
+        return Path(*parts)
 
     def _delete_stale_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
         active = set(active_page_ids)

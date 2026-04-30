@@ -54,7 +54,8 @@ def write_markdown(
         path = existing_path
     else:
         path = target_dir / safe_filename(title)
-        if path.exists() and disambiguator:
+        sibling_dir = target_dir / path.stem
+        if (path.exists() or sibling_dir.exists()) and disambiguator:
             path = target_dir / safe_filename(f"{title} - {disambiguator}")
     path.write_text(markdown, encoding="utf-8", newline="\n")
     return path
