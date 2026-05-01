@@ -10,7 +10,7 @@ This design covers the next development cycle only:
 
 - Visual hierarchy for nested notes at any practical depth.
 - Collapsed note groups by default.
-- Light, dark, and system theme preferences.
+- Light and dark theme preferences.
 - Local automatic sync by interval.
 - A sync status surface in the API and Angular app.
 - Documentation and configuration guidance for a root Notion database such as `Meeting Notes Inbox`.
@@ -54,13 +54,12 @@ All expandable groups should start collapsed when the app loads or when the note
 
 ### Theme Preference
 
-The app should provide a compact theme control with three modes:
+The app should provide a compact theme control with two explicit modes:
 
 - `Claro`
 - `Oscuro`
-- `Sistema`
 
-The selected mode should persist in `localStorage`. `Sistema` should follow the browser or operating system color preference. The implementation should use CSS variables so the editor, preview, sidebar, buttons, empty states, and status messages share the same theme tokens.
+The selected mode should persist in `localStorage`. The implementation should use CSS variables so the editor, preview, sidebar, buttons, empty states, and status messages share the same theme tokens.
 
 ### Sync Status
 
@@ -206,7 +205,7 @@ Manual verification should include:
 
 - Fix deep tree hierarchy rendering.
 - Collapse groups by default.
-- Add light/dark/system theme support.
+- Add light/dark theme support.
 - Verify edit and save still write to Obsidian files.
 
 ### Sprint 2

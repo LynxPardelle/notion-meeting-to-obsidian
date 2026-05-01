@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Improve the Angular app's note navigation by rendering deep parent/child/grandchild hierarchy clearly, defaulting groups to collapsed, and adding light/dark/system theme selection.
+**Goal:** Improve the Angular app's note navigation by rendering deep parent/child/grandchild hierarchy clearly, defaulting groups to collapsed, and adding light/dark theme selection.
 
 **Architecture:** Keep the current single Angular component structure for this sprint. Add focused helper methods for tree depth, collapsed state, theme state, and CSS variables without changing the backend API.
 
@@ -105,7 +105,7 @@ Expected: Angular build succeeds.
 Add a theme type:
 
 ```ts
-type ThemePreference = 'light' | 'dark' | 'system';
+type ThemePreference = 'light' | 'dark';
 ```
 
 - [ ] **Step 2: Add state and persistence**
@@ -113,7 +113,7 @@ type ThemePreference = 'light' | 'dark' | 'system';
 Add signal and methods:
 
 ```ts
-readonly themePreference = signal<ThemePreference>('system');
+readonly themePreference = signal<ThemePreference>('light');
 
 setThemePreference(theme: ThemePreference): void {
   this.themePreference.set(theme);
@@ -122,7 +122,7 @@ setThemePreference(theme: ThemePreference): void {
 }
 ```
 
-`applyTheme()` should set `document.documentElement.dataset.theme` to `light`, `dark`, or the resolved system value.
+`applyTheme()` should set `document.documentElement.dataset.theme` to `light` or `dark`.
 
 - [ ] **Step 3: Add UI control**
 
@@ -131,7 +131,6 @@ Add a compact segmented control in the sidebar:
 ```html
 <button type="button" (click)="setThemePreference('light')">Claro</button>
 <button type="button" (click)="setThemePreference('dark')">Oscuro</button>
-<button type="button" (click)="setThemePreference('system')">Sistema</button>
 ```
 
 Show the active option with an `.active` class.

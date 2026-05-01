@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 import { ApiService, NoteSummary } from './api.service';
 
-type ThemePreference = 'light' | 'dark' | 'system';
+type ThemePreference = 'light' | 'dark';
 
 @Component({
   selector: 'app-root',
@@ -20,7 +20,7 @@ export class AppComponent {
   readonly status = signal('Ready');
   readonly busy = signal(false);
   readonly collapsedKeys = signal<Set<string>>(new Set());
-  readonly themePreference = signal<ThemePreference>('system');
+  readonly themePreference = signal<ThemePreference>('light');
 
   readonly selectedName = computed(() => {
     const path = this.selectedPath();
@@ -202,27 +202,17 @@ export class AppComponent {
 
   private loadThemePreference(): void {
     const stored = localStorage.getItem('notion-obsidian-theme');
-    const theme = this.isThemePreference(stored) ? stored : 'system';
+    const theme = this.isThemePreference(stored) ? stored : 'light';
     this.themePreference.set(theme);
     this.applyTheme(theme);
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    media.addEventListener('change', () => {
-      if (this.themePreference() === 'system') {
-        this.applyTheme('system');
-      }
-    });
   }
 
   private isThemePreference(value: string | null): value is ThemePreference {
-    return value === 'light' || value === 'dark' || value === 'system';
+    return value === 'light' || value === 'dark';
   }
 
   private applyTheme(theme: ThemePreference): void {
-    const resolvedTheme = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : theme;
-    document.documentElement.dataset['theme'] = resolvedTheme;
+    document.documentElement.dataset['theme'] = theme;
   }
 
   private renderPreview(markdown: string): string {
