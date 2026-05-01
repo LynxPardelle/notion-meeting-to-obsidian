@@ -5,6 +5,8 @@ import { FormsModule } from '@angular/forms';
 
 import { ApiService, NoteSummary } from './api.service';
 
+type ThemePreference = 'light' | 'dark' | 'system';
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -18,6 +20,7 @@ export class AppComponent {
   readonly status = signal('Ready');
   readonly busy = signal(false);
   readonly collapsedKeys = signal<Set<string>>(new Set());
+  readonly themePreference = signal<ThemePreference>('system');
 
   readonly selectedName = computed(() => {
     const path = this.selectedPath();
@@ -28,6 +31,7 @@ export class AppComponent {
   readonly visibleNotes = computed(() => this.notes().filter((note) => !this.isHiddenByCollapsedAncestor(note)));
 
   constructor(private readonly api: ApiService) {
+    this.loadThemePreference();
     this.refreshNotes();
   }
 
@@ -91,6 +95,24 @@ export class AppComponent {
     this.markdown.set(value);
   }
 
+  setThemePreference(theme: ThemePreference): void {
+    this.themePreference.set(theme);
+    localStorage.setItem('notion-obsidian-theme', theme);
+    this.applyTheme(theme);
+  }
+
+  isThemeSelected(theme: ThemePreference): boolean {
+    return this.themePreference() === theme;
+  }
+
+  noteDepth(note: NoteSummary): number {
+    return Math.max(0, this.relativeParts(note).length - 1);
+  }
+
+  treeIndent(note: NoteSummary): string {
+    return `${this.noteDepth(note) * 18}px`;
+  }
+
   hasChildren(note: NoteSummary): boolean {
     const key = this.treeKey(note);
     return this.notes().some((candidate) => this.parentKeys(candidate).includes(key));
@@ -149,9 +171,23 @@ export class AppComponent {
 
   private relativeParts(note: NoteSummary): string[] {
     const parts = note.relative_path.split(/[\\/]/).filter(Boolean);
-    const last = parts.at(-1) ?? note.name;
-    parts[parts.length - 1] = last.replace(/\.md$/i, '');
+    if (!parts.length) {
+      return [note.name.replace(/\.md$/i, '')];
+    }
+
+    parts[parts.length - 1] = parts[parts.length - 1].replace(/\.md$/i, '');
+
+    const last = parts.at(-1);
+    const previous = parts.at(-2);
+    if (last && previous && this.normalizeTreePart(last) === this.normalizeTreePart(previous)) {
+      parts.pop();
+    }
+
     return parts;
+  }
+
+  private normalizeTreePart(value: string): string {
+    return value.trim().toLowerCase();
   }
 
   private collapsibleKeys(notes: NoteSummary[]): Set<string> {
@@ -162,6 +198,31 @@ export class AppComponent {
       }
     }
     return keys;
+  }
+
+  private loadThemePreference(): void {
+    const stored = localStorage.getItem('notion-obsidian-theme');
+    const theme = this.isThemePreference(stored) ? stored : 'system';
+    this.themePreference.set(theme);
+    this.applyTheme(theme);
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', () => {
+      if (this.themePreference() === 'system') {
+        this.applyTheme('system');
+      }
+    });
+  }
+
+  private isThemePreference(value: string | null): value is ThemePreference {
+    return value === 'light' || value === 'dark' || value === 'system';
+  }
+
+  private applyTheme(theme: ThemePreference): void {
+    const resolvedTheme = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    document.documentElement.dataset['theme'] = resolvedTheme;
   }
 
   private renderPreview(markdown: string): string {

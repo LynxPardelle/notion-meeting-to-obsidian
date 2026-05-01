@@ -1,13 +1,34 @@
-:root {
+:root,
+:root[data-theme="light"] {
   color-scheme: light;
   --bg: #f6f3ee;
   --panel: #ffffff;
+  --editor: #fffdf9;
   --ink: #1f2933;
   --muted: #667085;
   --line: #d9d4ca;
   --accent: #2f6f73;
   --accent-strong: #225357;
+  --active: #e8e0d4;
+  --active-soft: rgba(47, 111, 115, 0.12);
+  --button-ink: #ffffff;
   --danger: #b42318;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121417;
+  --panel: #191d21;
+  --editor: #101316;
+  --ink: #eef2f3;
+  --muted: #a7b0b7;
+  --line: #30363d;
+  --accent: #54a6a9;
+  --accent-strong: #7bc4bd;
+  --active: #263238;
+  --active-soft: rgba(84, 166, 169, 0.18);
+  --button-ink: #0d1113;
+  --danger: #ff8a7a;
 }
 
 * {
@@ -25,7 +46,7 @@ button {
   border: 0;
   border-radius: 6px;
   background: var(--accent);
-  color: white;
+  color: var(--button-ink);
   cursor: pointer;
   font: inherit;
   min-height: 36px;
@@ -99,6 +120,29 @@ button.secondary {
   grid-template-columns: 1fr 1fr;
 }
 
+.theme-control {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.theme-control button {
+  background: transparent;
+  color: var(--muted);
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+.theme-control button:hover,
+.theme-control button.active {
+  background: var(--active);
+  color: var(--ink);
+}
+
 .note-list {
   display: flex;
   flex: 1;
@@ -114,6 +158,7 @@ button.secondary {
   gap: 8px;
   justify-content: flex-start;
   overflow: hidden;
+  padding-left: calc(8px + var(--depth-offset, 0px));
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -121,19 +166,8 @@ button.secondary {
 
 .note-list button.child {
   align-items: flex-start;
-  border-left: 2px solid var(--accent);
   color: var(--muted);
   font-size: 14px;
-  margin-left: 18px;
-  padding-left: 12px;
-  width: calc(100% - 18px);
-}
-
-.node-marker {
-  color: var(--accent);
-  flex: 0 0 auto;
-  font-weight: 700;
-  width: 16px;
 }
 
 .node-spacer,
@@ -154,13 +188,20 @@ button.secondary {
 }
 
 .tree-toggle:hover {
-  background: rgba(47, 111, 115, 0.12);
+  background: var(--active-soft);
 }
 
 .note-content {
+  border-left: 1px solid transparent;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-left: 2px;
+}
+
+.note-list button.child .note-content {
+  border-left-color: var(--line);
+  padding-left: 10px;
 }
 
 .note-parent {
@@ -179,7 +220,7 @@ button.secondary {
 
 .note-list button.active,
 .note-list button:hover {
-  background: #e8e0d4;
+  background: var(--active);
 }
 
 .workspace {
@@ -236,7 +277,7 @@ button.secondary {
 }
 
 textarea {
-  background: #fffdf9;
+  background: var(--editor);
   border: 0;
   color: var(--ink);
   font: 14px/1.6 "Cascadia Code", Consolas, monospace;
