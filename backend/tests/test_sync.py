@@ -73,10 +73,10 @@ def test_sync_accepts_page_source_when_notion_reports_page_not_database(tmp_path
 class ParentPageWithChildrenNotion(PageOnlyNotion):
     def retrieve_page(self, page_id: str):
         titles = {
-            "parent": "Clase Python",
-            "child-1": "Proximas clases de Python",
-            "child-2": "Proximas clases de Python",
-            "grandchild": "Ejercicios",
+            "parent": "Root Meeting",
+            "child-1": "Follow-up Notes",
+            "child-2": "Follow-up Notes",
+            "grandchild": "Action Items",
         }
         return {
             "id": page_id,
@@ -93,12 +93,12 @@ class ParentPageWithChildrenNotion(PageOnlyNotion):
     def retrieve_block_children(self, block_id: str):
         if block_id == "parent":
             return [
-                {"id": "child-1", "type": "child_page", "child_page": {"title": "Proximas clases de Python"}},
-                {"id": "child-2", "type": "child_page", "child_page": {"title": "Proximas clases de Python"}},
+                {"id": "child-1", "type": "child_page", "child_page": {"title": "Follow-up Notes"}},
+                {"id": "child-2", "type": "child_page", "child_page": {"title": "Follow-up Notes"}},
             ]
         if block_id == "child-1":
             return [
-                {"id": "grandchild", "type": "child_page", "child_page": {"title": "Ejercicios"}},
+                {"id": "grandchild", "type": "child_page", "child_page": {"title": "Action Items"}},
             ]
         return [
             {
@@ -126,10 +126,10 @@ def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplic
     result = MeetingSyncService(config, notion=ParentPageWithChildrenNotion()).sync(force=True)
 
     assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
-    assert (tmp_path / "Meetings" / "Clase Python" / "Clase Python.md").exists()
-    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Proximas clases de Python.md").exists()
-    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python - child-2.md").exists()
-    assert (tmp_path / "Meetings" / "Clase Python" / "Proximas clases de Python" / "Ejercicios.md").exists()
+    assert (tmp_path / "Meetings" / "Root Meeting" / "Root Meeting.md").exists()
+    assert (tmp_path / "Meetings" / "Root Meeting" / "Follow-up Notes" / "Follow-up Notes.md").exists()
+    assert (tmp_path / "Meetings" / "Root Meeting" / "Follow-up Notes - child-2.md").exists()
+    assert (tmp_path / "Meetings" / "Root Meeting" / "Follow-up Notes" / "Action Items.md").exists()
 
 
 def test_sync_all_accessible_pages_uses_visible_roots_and_preserves_hierarchy(tmp_path: Path):
@@ -215,9 +215,9 @@ def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path)
         obsidian_meetings_folder="Meetings",
     )
     meetings_dir = tmp_path / "Meetings"
-    previous_child_path = meetings_dir / "Proximas clases de Python.md"
+    previous_child_path = meetings_dir / "Follow-up Notes.md"
     previous_child_path.parent.mkdir(parents=True)
-    previous_child_path.write_text("# Proximas clases de Python\n", encoding="utf-8")
+    previous_child_path.write_text("# Follow-up Notes\n", encoding="utf-8")
     state_path = tmp_path / ".notion-meeting-sync" / "state.json"
     state_path.parent.mkdir(parents=True)
     state_path.write_text(
@@ -231,4 +231,4 @@ def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path)
 
     assert previous_child_path in result.deleted
     assert not previous_child_path.exists()
-    assert (meetings_dir / "Clase Python" / "Proximas clases de Python" / "Proximas clases de Python.md").exists()
+    assert (meetings_dir / "Root Meeting" / "Follow-up Notes" / "Follow-up Notes.md").exists()
