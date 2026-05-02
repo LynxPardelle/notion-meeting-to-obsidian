@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
+from .metadata import notion_properties_to_metadata
 from .notion import NotionApiError, NotionClient
 from .state import SyncState
 from .writer import safe_filename, write_markdown
@@ -73,7 +74,15 @@ class MeetingSyncService:
                 disambiguator=page_id[:8],
             )
             deleted.extend(self._delete_replaced_file(previous_raw_path, file_path))
-            state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path, extract_title(page))
+            state.mark_synced(
+                page_id,
+                page.get("last_edited_time", last_edited_time),
+                file_path,
+                extract_title(page),
+                notion_url=page.get("url", ""),
+                created_time=page.get("created_time", ""),
+                metadata=notion_properties_to_metadata(page.get("properties", {})),
+            )
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
         if self.config.delete_stale_synced_notes:

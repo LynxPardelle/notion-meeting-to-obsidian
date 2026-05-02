@@ -14,12 +14,13 @@ def test_state_tracks_incremental_sync(tmp_path: Path):
 
     assert state.should_sync("page-1", "t1")
 
-    state.mark_synced("page-1", "t1", tmp_path / "note.md", "Note")
+    state.mark_synced("page-1", "t1", tmp_path / "note.md", "Note", metadata=[{"name": "Owner", "type": "people", "value": "Ana"}])
     state.save()
 
     reloaded = SyncState.load(state_path)
     assert not reloaded.should_sync("page-1", "t1")
     assert reloaded.should_sync("page-1", "t2")
+    assert reloaded.pages["page-1"]["metadata"] == [{"name": "Owner", "type": "people", "value": "Ana"}]
 
 
 def test_state_tracks_active_pages(tmp_path: Path):

@@ -78,6 +78,12 @@ def create_app() -> FastAPI:
             if not state.active_page_ids or page_id in state.active_page_ids
         }
         notes = []
+        pages_by_path = {
+            Path(page["file_path"]).resolve(): page
+            for page in state.pages.values()
+            if page.get("file_path")
+        }
+
         def note_sort_key(path: Path) -> tuple[str, int, str]:
             relative = display_relative_path(path.relative_to(config.meetings_dir))
             root_name = relative.parts[0]
@@ -95,9 +101,14 @@ def create_app() -> FastAPI:
                 continue
             relative = path.relative_to(config.meetings_dir)
             display_relative = display_relative_path(relative)
+            page_state = pages_by_path.get(path.resolve(), {})
             notes.append(
                 {
+                    "created_time": page_state.get("created_time", ""),
+                    "last_edited_time": page_state.get("last_edited_time", ""),
+                    "metadata": page_state.get("metadata", []),
                     "name": path.stem,
+                    "notion_url": page_state.get("notion_url", ""),
                     "path": str(path),
                     "relative_path": str(display_relative),
                     "depth": len(display_relative.parts) - 1,

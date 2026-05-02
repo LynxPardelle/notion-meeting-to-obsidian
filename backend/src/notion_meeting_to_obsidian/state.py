@@ -25,10 +25,22 @@ class SyncState:
         previous = self.pages.get(page_id)
         return previous is None or previous.get("last_edited_time") != last_edited_time
 
-    def mark_synced(self, page_id: str, last_edited_time: str, file_path: Path, title: str) -> None:
+    def mark_synced(
+        self,
+        page_id: str,
+        last_edited_time: str,
+        file_path: Path,
+        title: str,
+        notion_url: str = "",
+        created_time: str = "",
+        metadata: list[dict[str, str]] | None = None,
+    ) -> None:
         self.pages[page_id] = {
+            "created_time": created_time,
             "last_edited_time": last_edited_time,
             "file_path": str(file_path),
+            "metadata": metadata or [],
+            "notion_url": notion_url,
             "title": title,
         }
 

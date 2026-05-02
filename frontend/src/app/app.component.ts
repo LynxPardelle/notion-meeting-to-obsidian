@@ -23,10 +23,15 @@ export class AppComponent {
   readonly themePreference = signal<ThemePreference>('light');
 
   readonly selectedName = computed(() => {
-    const path = this.selectedPath();
-    return this.notes().find((note) => note.path === path)?.name ?? 'No note selected';
+    return this.selectedNote()?.name ?? 'No note selected';
   });
 
+  readonly selectedNote = computed(() => {
+    const path = this.selectedPath();
+    return this.notes().find((note) => note.path === path) ?? null;
+  });
+
+  readonly selectedMetadata = computed(() => this.selectedNote()?.metadata ?? []);
   readonly preview = computed(() => this.renderPreview(this.markdown()));
   readonly visibleNotes = computed(() => this.notes().filter((note) => !this.isHiddenByCollapsedAncestor(note)));
 
@@ -115,6 +120,29 @@ export class AppComponent {
 
   treeIndent(note: NoteSummary): string {
     return `${this.noteDepth(note) * 18}px`;
+  }
+
+  noteSubtitle(note: NoteSummary): string {
+    const values = note.metadata
+      .filter((item) => item.type !== 'rich_text')
+      .slice(0, 2)
+      .map((item) => item.value)
+      .filter(Boolean);
+    return values.join(' · ');
+  }
+
+  formatTimestamp(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'medium',
+      timeStyle: value.includes('T') ? 'short' : undefined
+    }).format(date);
   }
 
   hasChildren(note: NoteSummary): boolean {

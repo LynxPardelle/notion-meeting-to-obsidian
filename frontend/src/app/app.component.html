@@ -49,6 +49,7 @@
         <span class="note-content">
           <span class="note-parent" *ngIf="noteDepth(note) > 0">{{ note.parent }}</span>
           <span class="note-name">{{ note.name }}</span>
+          <span class="note-meta" *ngIf="noteSubtitle(note)">{{ noteSubtitle(note) }}</span>
         </span>
       </button>
     </nav>
@@ -57,14 +58,26 @@
   <section class="workspace">
     <header class="toolbar">
       <div>
-        <p class="eyebrow">Current note</p>
+        <p class="eyebrow">Reunión actual</p>
         <h2>{{ selectedName() }}</h2>
       </div>
       <div class="toolbar-actions">
         <span class="status">{{ status() }}</span>
+        <a class="notion-link" *ngIf="selectedNote()?.notion_url" [href]="selectedNote()?.notion_url" target="_blank" rel="noreferrer">Notion</a>
         <button type="button" (click)="save()" [disabled]="busy() || !selectedPath()">Save</button>
       </div>
     </header>
+
+    <section class="metadata-panel" *ngIf="selectedNote()">
+      <div class="metadata-item" *ngFor="let item of selectedMetadata()">
+        <span>{{ item.name }}</span>
+        <strong>{{ item.value }}</strong>
+      </div>
+      <div class="metadata-item" *ngIf="selectedNote()?.last_edited_time">
+        <span>Editado en Notion</span>
+        <strong>{{ formatTimestamp(selectedNote()?.last_edited_time || '') }}</strong>
+      </div>
+    </section>
 
     <div class="editor-grid">
       <section class="pane">

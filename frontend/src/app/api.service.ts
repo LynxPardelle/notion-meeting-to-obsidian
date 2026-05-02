@@ -3,11 +3,21 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 export interface NoteSummary {
+  created_time: string;
+  last_edited_time: string;
+  metadata: NoteMetadata[];
   name: string;
+  notion_url: string;
   path: string;
   relative_path: string;
   depth: number;
   parent: string | null;
+}
+
+export interface NoteMetadata {
+  name: string;
+  type: string;
+  value: string;
 }
 
 export interface ReadNoteResponse {
