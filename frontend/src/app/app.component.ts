@@ -105,6 +105,10 @@ export class AppComponent {
     return this.themePreference() === theme;
   }
 
+  toggleTheme(): void {
+    this.setThemePreference(this.themePreference() === 'dark' ? 'light' : 'dark');
+  }
+
   noteDepth(note: NoteSummary): number {
     return Math.max(0, this.relativeParts(note).length - 1);
   }

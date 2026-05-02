@@ -232,3 +232,31 @@ def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path)
     assert previous_child_path in result.deleted
     assert not previous_child_path.exists()
     assert (meetings_dir / "Root Meeting" / "Follow-up Notes" / "Follow-up Notes.md").exists()
+
+
+def test_sync_renames_file_when_page_title_changes(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+    meetings_dir = tmp_path / "Meetings"
+    previous_path = meetings_dir / "Old Meeting Title.md"
+    previous_path.parent.mkdir(parents=True)
+    previous_path.write_text("# Old Meeting Title\n", encoding="utf-8")
+    state_path = tmp_path / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{'
+        '"page-1":{"file_path":"' + previous_path.as_posix() + '","last_edited_time":"old","title":"Old Meeting Title"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
+
+    renamed_path = meetings_dir / "Single Meeting.md"
+    assert previous_path in result.deleted
+    assert not previous_path.exists()
+    assert renamed_path.exists()

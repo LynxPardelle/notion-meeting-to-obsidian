@@ -25,10 +25,11 @@ class SyncState:
         previous = self.pages.get(page_id)
         return previous is None or previous.get("last_edited_time") != last_edited_time
 
-    def mark_synced(self, page_id: str, last_edited_time: str, file_path: Path) -> None:
+    def mark_synced(self, page_id: str, last_edited_time: str, file_path: Path, title: str) -> None:
         self.pages[page_id] = {
             "last_edited_time": last_edited_time,
             "file_path": str(file_path),
+            "title": title,
         }
 
     def mark_active(self, page_ids: list[str]) -> None:

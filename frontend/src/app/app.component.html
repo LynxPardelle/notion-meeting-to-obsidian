@@ -6,6 +6,17 @@
         <h1>Meeting Notes</h1>
         <p>Notion to Obsidian</p>
       </div>
+      <button
+        type="button"
+        class="theme-switch"
+        [class.dark]="isThemeSelected('dark')"
+        [attr.aria-label]="isThemeSelected('dark') ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        [attr.aria-pressed]="isThemeSelected('dark')"
+        (click)="toggleTheme()">
+        <span class="switch-track">
+          <span class="switch-thumb"></span>
+        </span>
+      </button>
     </div>
 
     <div class="sidebar-actions">
@@ -13,12 +24,8 @@
       <button type="button" class="secondary" (click)="refreshNotes()" [disabled]="busy()">Refresh</button>
     </div>
 
-    <div class="theme-control" aria-label="Theme preference">
-      <button type="button" [class.active]="isThemeSelected('light')" (click)="setThemePreference('light')">Claro</button>
-      <button type="button" [class.active]="isThemeSelected('dark')" (click)="setThemePreference('dark')">Oscuro</button>
-    </div>
-
     <nav class="note-list" aria-label="Synced notes">
+      <p class="section-label">Reuniones sincronizadas</p>
       <button
         type="button"
         *ngFor="let note of visibleNotes()"

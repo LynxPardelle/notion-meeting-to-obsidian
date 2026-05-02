@@ -7,7 +7,7 @@ from .config import Config
 from .converter import extract_title, page_to_markdown
 from .notion import NotionApiError, NotionClient
 from .state import SyncState
-from .writer import write_markdown
+from .writer import safe_filename, write_markdown
 
 
 @dataclass(frozen=True)
@@ -49,10 +49,12 @@ class MeetingSyncService:
             title = extract_title(page_summary)
             subdir = self._subdir_for_page(page_summary)
             target_dir = self.config.meetings_dir / subdir if subdir else self.config.meetings_dir
-            previous_raw_path = state.pages.get(page_id, {}).get("file_path")
+            previous_state = state.pages.get(page_id, {})
+            previous_raw_path = previous_state.get("file_path")
             previous_path = Path(previous_raw_path or "")
             layout_changed = bool(previous_raw_path) and Path(previous_raw_path).parent != target_dir
-            if not state.should_sync(page_id, last_edited_time, force=force) and not layout_changed:
+            title_changed = self._title_changed(previous_state, title)
+            if not state.should_sync(page_id, last_edited_time, force=force) and not layout_changed and not title_changed:
                 skipped.append(SyncedNote(page_id, title, previous_path, changed=False, parent_id=parent_id, depth=depth))
                 continue
 
@@ -60,7 +62,7 @@ class MeetingSyncService:
             blocks = self.notion.retrieve_block_children_recursive(page_id)
             markdown = page_to_markdown(page, blocks)
             existing_path = previous_raw_path
-            if existing_path and Path(existing_path).parent != target_dir:
+            if existing_path and (Path(existing_path).parent != target_dir or title_changed):
                 existing_path = None
             file_path = write_markdown(
                 self.config.meetings_dir,
@@ -71,7 +73,7 @@ class MeetingSyncService:
                 disambiguator=page_id[:8],
             )
             deleted.extend(self._delete_replaced_file(previous_raw_path, file_path))
-            state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path)
+            state.mark_synced(page_id, page.get("last_edited_time", last_edited_time), file_path, extract_title(page))
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
         if self.config.delete_stale_synced_notes:
@@ -150,6 +152,17 @@ class MeetingSyncService:
         if not parts:
             return None
         return Path(*parts)
+
+    def _title_changed(self, previous_state: dict, current_title: str) -> bool:
+        if not previous_state:
+            return False
+        previous_title = previous_state.get("title")
+        if isinstance(previous_title, str) and previous_title:
+            return previous_title != current_title
+        previous_path = previous_state.get("file_path")
+        if not previous_path:
+            return False
+        return Path(previous_path).name != safe_filename(current_title)
 
     def _delete_stale_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
         active = set(active_page_ids)
