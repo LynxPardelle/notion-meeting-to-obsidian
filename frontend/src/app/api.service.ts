@@ -20,9 +20,21 @@ export interface NoteMetadata {
   value: string;
 }
 
+export interface MeetingTask {
+  text: string;
+  checked: boolean;
+}
+
+export interface MeetingCard {
+  summary: string;
+  tasks: MeetingTask[];
+  notes: string;
+}
+
 export interface ReadNoteResponse {
   path: string;
   markdown: string;
+  card: MeetingCard;
 }
 
 export interface SyncResponse {
@@ -53,6 +65,13 @@ export class ApiService {
     return this.http.post<{ path: string; status: string }>(`${this.baseUrl}/notes/save`, {
       path,
       markdown
+    });
+  }
+
+  saveMeetingCard(path: string, card: MeetingCard): Observable<{ path: string; status: string }> {
+    return this.http.post<{ path: string; status: string }>(`${this.baseUrl}/notes/card/save`, {
+      path,
+      card
     });
   }
 }

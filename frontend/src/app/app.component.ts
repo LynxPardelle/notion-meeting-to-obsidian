@@ -3,9 +3,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ApiService, NoteSummary } from './api.service';
+import { ApiService, MeetingCard, NoteSummary } from './api.service';
 
 type ThemePreference = 'light' | 'dark';
+type ViewMode = 'card' | 'markdown';
 
 @Component({
   selector: 'app-root',
@@ -17,6 +18,10 @@ export class AppComponent {
   readonly notes = signal<NoteSummary[]>([]);
   readonly selectedPath = signal('');
   readonly markdown = signal('');
+  readonly savedMarkdown = signal('');
+  readonly card = signal<MeetingCard>({ summary: '', tasks: [], notes: '' });
+  readonly savedCard = signal<MeetingCard>({ summary: '', tasks: [], notes: '' });
+  readonly viewMode = signal<ViewMode>('card');
   readonly status = signal('Ready');
   readonly busy = signal(false);
   readonly collapsedKeys = signal<Set<string>>(new Set());
@@ -34,6 +39,8 @@ export class AppComponent {
   readonly selectedMetadata = computed(() => this.selectedNote()?.metadata ?? []);
   readonly preview = computed(() => this.renderPreview(this.markdown()));
   readonly visibleNotes = computed(() => this.notes().filter((note) => !this.isHiddenByCollapsedAncestor(note)));
+  readonly cardDirty = computed(() => JSON.stringify(this.card()) !== JSON.stringify(this.savedCard()));
+  readonly markdownDirty = computed(() => this.markdown() !== this.savedMarkdown());
 
   constructor(private readonly api: ApiService) {
     this.loadThemePreference();
@@ -71,6 +78,10 @@ export class AppComponent {
       next: (response) => {
         this.selectedPath.set(response.path);
         this.markdown.set(response.markdown);
+        this.savedMarkdown.set(response.markdown);
+        this.card.set(this.cloneCard(response.card));
+        this.savedCard.set(this.cloneCard(response.card));
+        this.viewMode.set('card');
         this.status.set(`Opened ${note.name}`);
       },
       error: (error) => this.fail(error),
@@ -89,6 +100,7 @@ export class AppComponent {
     this.api.saveNote(path, this.markdown()).subscribe({
       next: () => {
         this.status.set('Saved');
+        this.savedMarkdown.set(this.markdown());
         this.refreshNotes();
       },
       error: (error) => this.fail(error),
@@ -98,6 +110,61 @@ export class AppComponent {
 
   updateMarkdown(value: string): void {
     this.markdown.set(value);
+  }
+
+  setViewMode(mode: ViewMode): void {
+    if (mode === 'card' && this.markdownDirty() && !window.confirm('Hay cambios Markdown sin guardar. ¿Salir sin guardar?')) {
+      return;
+    }
+    if (mode === 'markdown' && this.cardDirty() && !window.confirm('Hay cambios en la ficha sin guardar. ¿Salir sin guardar?')) {
+      return;
+    }
+    this.viewMode.set(mode);
+  }
+
+  updateCardField(field: 'summary' | 'notes', value: string): void {
+    this.card.set({ ...this.card(), [field]: value });
+  }
+
+  updateTaskText(index: number, text: string): void {
+    const tasks = this.card().tasks.map((task, current) => (current === index ? { ...task, text } : task));
+    this.card.set({ ...this.card(), tasks });
+  }
+
+  toggleTask(index: number): void {
+    const tasks = this.card().tasks.map((task, current) =>
+      current === index ? { ...task, checked: !task.checked } : task
+    );
+    this.card.set({ ...this.card(), tasks });
+  }
+
+  addTask(): void {
+    this.card.set({ ...this.card(), tasks: [...this.card().tasks, { text: '', checked: false }] });
+  }
+
+  removeTask(index: number): void {
+    this.card.set({ ...this.card(), tasks: this.card().tasks.filter((_, current) => current !== index) });
+  }
+
+  saveCard(): void {
+    const path = this.selectedPath();
+    if (!path) {
+      this.status.set('Select a note before saving.');
+      return;
+    }
+    this.busy.set(true);
+    this.status.set('Saving meeting card...');
+    this.api.saveMeetingCard(path, this.card()).subscribe({
+      next: () => {
+        this.status.set('Saved');
+        const selected = this.selectedNote();
+        if (selected) {
+          this.openNote(selected);
+        }
+      },
+      error: (error) => this.fail(error),
+      complete: () => this.busy.set(false)
+    });
   }
 
   setThemePreference(theme: ThemePreference): void {
@@ -245,6 +312,14 @@ export class AppComponent {
 
   private applyTheme(theme: ThemePreference): void {
     document.documentElement.dataset['theme'] = theme;
+  }
+
+  private cloneCard(card: MeetingCard): MeetingCard {
+    return {
+      summary: card.summary,
+      tasks: card.tasks.map((task) => ({ ...task })),
+      notes: card.notes
+    };
   }
 
   private renderPreview(markdown: string): string {
