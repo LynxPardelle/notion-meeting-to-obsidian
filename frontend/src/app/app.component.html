@@ -71,10 +71,6 @@
       <div class="meeting-main">
         <article class="meeting-card" *ngIf="viewMode() === 'card'">
           <div class="card-header">
-            <div>
-              <p class="eyebrow">Ficha de reunión</p>
-              <h3>{{ selectedName() }}</h3>
-            </div>
             <div class="card-header-actions">
               <button type="button" (click)="saveCard()" [disabled]="busy() || !cardDirty()">Guardar ficha</button>
               <button type="button" class="secondary" (click)="setViewMode('markdown')">Editar Markdown</button>
