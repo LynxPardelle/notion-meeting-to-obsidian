@@ -258,7 +258,7 @@ button.secondary {
 
 .workspace {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   min-width: 0;
 }
 
@@ -296,15 +296,8 @@ button.secondary {
   background: var(--active);
 }
 
-.metadata-panel {
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  padding: 12px 22px;
-}
-
 .metadata-item {
+  margin-top: 14px;
   min-width: 0;
 }
 
@@ -325,9 +318,148 @@ button.secondary {
   white-space: nowrap;
 }
 
+.meeting-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  min-height: 0;
+}
+
+.meeting-main {
+  min-height: 0;
+  min-width: 0;
+}
+
+.meeting-card {
+  height: 100%;
+  overflow: auto;
+  padding: 28px;
+}
+
+.card-header,
+.section-row,
+.card-actions,
+.markdown-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.meeting-card h3,
+.details-panel h3,
+.empty-state h3 {
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.field-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.field-block > span,
+.section-row > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.field-block textarea,
+.task-row input[type="text"] {
+  background: var(--editor);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.55;
+  outline: none;
+  padding: 12px;
+  width: 100%;
+}
+
+.field-block textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
+.field-block .notes-area {
+  min-height: 220px;
+}
+
+.task-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-top: 8px;
+}
+
+.task-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  height: 18px;
+  width: 18px;
+}
+
+.icon-action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  font-weight: 700;
+  height: 32px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0;
+  width: 32px;
+}
+
+.icon-action:hover {
+  background: var(--active);
+}
+
+.empty-copy {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.card-actions {
+  border-top: 1px solid var(--line);
+  justify-content: flex-start;
+  margin-top: 24px;
+  padding-top: 18px;
+}
+
+.details-panel {
+  border-left: 1px solid var(--line);
+  min-height: 0;
+  overflow: auto;
+  padding: 22px;
+}
+
+.empty-state {
+  display: grid;
+  min-height: 0;
+  padding: 32px;
+  place-content: center;
+  text-align: center;
+}
+
+.empty-state p {
+  color: var(--muted);
+  max-width: 420px;
+}
+
 .editor-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
 }
 
@@ -383,7 +515,8 @@ textarea {
 
 @media (max-width: 860px) {
   .app-shell,
-  .editor-grid {
+  .editor-grid,
+  .meeting-layout {
     grid-template-columns: 1fr;
   }
 
@@ -414,13 +547,18 @@ textarea {
     justify-content: flex-end;
   }
 
-  .metadata-panel {
-    grid-template-columns: 1fr;
-    padding: 12px 18px;
-  }
-
   .pane + .pane {
     border-left: 0;
     border-top: 1px solid var(--line);
+  }
+
+  .meeting-card {
+    padding: 20px 18px;
+  }
+
+  .details-panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 18px;
   }
 }

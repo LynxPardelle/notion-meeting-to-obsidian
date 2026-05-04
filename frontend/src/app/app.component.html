@@ -64,35 +64,111 @@
       <div class="toolbar-actions">
         <span class="status">{{ status() }}</span>
         <a class="notion-link" *ngIf="selectedNote()?.notion_url" [href]="selectedNote()?.notion_url" target="_blank" rel="noreferrer">Notion</a>
-        <button type="button" (click)="save()" [disabled]="busy() || !selectedPath()">Save</button>
+        <button type="button" (click)="save()" [disabled]="busy() || !selectedPath() || viewMode() !== 'markdown'">Guardar Markdown</button>
       </div>
     </header>
 
-    <section class="metadata-panel" *ngIf="selectedNote()">
-      <div class="metadata-item" *ngFor="let item of selectedMetadata()">
-        <span>{{ item.name }}</span>
-        <strong>{{ item.value }}</strong>
+    <section class="meeting-layout" *ngIf="selectedPath(); else emptyState">
+      <div class="meeting-main">
+        <article class="meeting-card" *ngIf="viewMode() === 'card'">
+          <div class="card-header">
+            <div>
+              <p class="eyebrow">Ficha de reunión</p>
+              <h3>{{ selectedName() }}</h3>
+            </div>
+            <button type="button" class="secondary" (click)="setViewMode('markdown')">Editar Markdown</button>
+          </div>
+
+          <label class="field-block">
+            <span>Resumen</span>
+            <textarea
+              [ngModel]="card().summary"
+              (ngModelChange)="updateCardField('summary', $event)"
+              aria-label="Resumen de la reunión"></textarea>
+          </label>
+
+          <section class="field-block">
+            <div class="section-row">
+              <span>Tareas</span>
+              <button type="button" class="icon-action" aria-label="Agregar tarea" (click)="addTask()">+</button>
+            </div>
+            <div class="task-row" *ngFor="let task of card().tasks; let index = index">
+              <input
+                type="checkbox"
+                [checked]="task.checked"
+                [attr.aria-label]="'Marcar tarea ' + (index + 1)"
+                (change)="toggleTask(index)" />
+              <input
+                type="text"
+                [ngModel]="task.text"
+                [attr.aria-label]="'Texto de tarea ' + (index + 1)"
+                (ngModelChange)="updateTaskText(index, $event)" />
+              <button type="button" class="icon-action" [attr.aria-label]="'Eliminar tarea ' + (index + 1)" (click)="removeTask(index)">×</button>
+            </div>
+            <p class="empty-copy" *ngIf="!card().tasks.length">Sin tareas registradas.</p>
+          </section>
+
+          <label class="field-block">
+            <span>Notas</span>
+            <textarea
+              class="notes-area"
+              [ngModel]="card().notes"
+              (ngModelChange)="updateCardField('notes', $event)"
+              aria-label="Notas de la reunión"></textarea>
+          </label>
+
+          <div class="card-actions">
+            <button type="button" (click)="saveCard()" [disabled]="busy() || !cardDirty()">Guardar ficha</button>
+            <span class="status" *ngIf="cardDirty()">Cambios sin guardar</span>
+          </div>
+        </article>
+
+        <div class="editor-grid" *ngIf="viewMode() === 'markdown'">
+          <section class="pane">
+            <div class="pane-header markdown-header">
+              <span>Markdown</span>
+              <button type="button" class="secondary" (click)="setViewMode('card')">Volver a ficha</button>
+            </div>
+            <textarea
+              [ngModel]="markdown()"
+              (ngModelChange)="updateMarkdown($event)"
+              spellcheck="false"
+              aria-label="Markdown editor"></textarea>
+          </section>
+
+          <section class="pane preview">
+            <div class="pane-header">Preview</div>
+            <article [innerHTML]="preview()"></article>
+          </section>
+        </div>
       </div>
-      <div class="metadata-item" *ngIf="selectedNote()?.last_edited_time">
-        <span>Editado en Notion</span>
-        <strong>{{ formatTimestamp(selectedNote()?.last_edited_time || '') }}</strong>
-      </div>
+
+      <aside class="details-panel">
+        <h3>Propiedades</h3>
+        <div class="metadata-item" *ngFor="let item of selectedMetadata()">
+          <span>{{ item.name }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+        <div class="metadata-item" *ngIf="selectedNote()?.last_edited_time">
+          <span>Editado en Notion</span>
+          <strong>{{ formatTimestamp(selectedNote()?.last_edited_time || '') }}</strong>
+        </div>
+        <div class="metadata-item" *ngIf="selectedNote()?.created_time">
+          <span>Creado en Notion</span>
+          <strong>{{ formatTimestamp(selectedNote()?.created_time || '') }}</strong>
+        </div>
+        <div class="metadata-item" *ngIf="selectedNote()?.relative_path">
+          <span>Obsidian</span>
+          <strong>{{ selectedNote()?.relative_path }}</strong>
+        </div>
+      </aside>
     </section>
 
-    <div class="editor-grid">
-      <section class="pane">
-        <div class="pane-header">Markdown</div>
-        <textarea
-          [ngModel]="markdown()"
-          (ngModelChange)="updateMarkdown($event)"
-          spellcheck="false"
-          aria-label="Markdown editor"></textarea>
+    <ng-template #emptyState>
+      <section class="empty-state">
+        <h3>Selecciona una reunión</h3>
+        <p>Elige una nota sincronizada para revisar su ficha, editar secciones o abrir el Markdown completo.</p>
       </section>
-
-      <section class="pane preview">
-        <div class="pane-header">Preview</div>
-        <article [innerHTML]="preview()"></article>
-      </section>
-    </div>
+    </ng-template>
   </section>
 </main>
