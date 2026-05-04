@@ -2,6 +2,7 @@ from notion_meeting_to_obsidian.meeting_card import (
     MeetingCard,
     MeetingTask,
     parse_meeting_card,
+    preserve_existing_card_sections,
     update_meeting_card_sections,
 )
 
@@ -110,3 +111,52 @@ Viejo.
     assert "## Tareas\n\n- [ ] Nueva tarea" in updated
     assert "## Notas\n\nNueva nota." in updated
     assert "Viejo." not in updated
+
+
+def test_preserve_existing_card_sections_keeps_local_summary_tasks_and_notes():
+    incoming = """---
+title: "Demo"
+---
+
+# Demo
+
+Nuevo cuerpo desde Notion.
+"""
+    existing = """---
+title: "Demo"
+---
+
+# Demo
+
+Cuerpo anterior desde Notion.
+
+## Resumen
+
+Resumen local.
+
+## Tareas
+
+- [x] Tarea local
+
+## Notas
+
+Notas locales.
+"""
+
+    merged = preserve_existing_card_sections(incoming, existing)
+
+    assert "Nuevo cuerpo desde Notion." in merged
+    assert "Cuerpo anterior desde Notion." not in merged
+    assert "## Resumen\n\nResumen local." in merged
+    assert "## Tareas\n\n- [x] Tarea local" in merged
+    assert "## Notas\n\nNotas locales." in merged
+
+
+def test_preserve_existing_card_sections_ignores_unsectioned_existing_body():
+    incoming = "# Demo\n\nNuevo cuerpo desde Notion.\n"
+    existing = "# Demo\n\nCuerpo anterior sin secciones.\n"
+
+    merged = preserve_existing_card_sections(incoming, existing)
+
+    assert "Nuevo cuerpo desde Notion." in merged
+    assert "Cuerpo anterior sin secciones." not in merged

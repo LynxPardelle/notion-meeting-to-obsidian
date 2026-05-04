@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
+from .meeting_card import preserve_existing_card_sections
 from .metadata import notion_properties_to_metadata
 from .notion import NotionApiError, NotionClient
 from .state import SyncState
@@ -62,6 +63,7 @@ class MeetingSyncService:
             page = self.notion.retrieve_page(page_id)
             blocks = self.notion.retrieve_block_children_recursive(page_id)
             markdown = page_to_markdown(page, blocks)
+            markdown = self._preserve_local_card_sections(markdown, previous_raw_path)
             existing_path = previous_raw_path
             if existing_path and (Path(existing_path).parent != target_dir or title_changed):
                 existing_path = None
@@ -172,6 +174,14 @@ class MeetingSyncService:
         if not previous_path:
             return False
         return Path(previous_path).name != safe_filename(current_title)
+
+    def _preserve_local_card_sections(self, markdown: str, previous_raw_path: str | None) -> str:
+        if not previous_raw_path:
+            return markdown
+        previous_path = Path(previous_raw_path)
+        if not previous_path.exists():
+            return markdown
+        return preserve_existing_card_sections(markdown, previous_path.read_text(encoding="utf-8"))
 
     def _delete_stale_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
         active = set(active_page_ids)

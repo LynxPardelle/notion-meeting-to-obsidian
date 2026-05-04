@@ -6,6 +6,7 @@ import re
 
 HEADING_RE = re.compile(r"(?m)^##\s+(.+?)\s*$")
 TASK_RE = re.compile(r"^-\s+\[( |x|X)\]\s+(.*)$")
+EDITABLE_HEADINGS = ("Resumen", "Tareas", "Notas")
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,15 @@ def update_meeting_card_sections(markdown: str, card: MeetingCard) -> str:
     for heading, content in replacements.items():
         result = _replace_or_append_section(result, heading, content)
 
+    return result.rstrip() + "\n"
+
+
+def preserve_existing_card_sections(incoming_markdown: str, existing_markdown: str) -> str:
+    existing_sections = _section_map(existing_markdown)
+    result = incoming_markdown.rstrip()
+    for heading in EDITABLE_HEADINGS:
+        if heading in existing_sections:
+            result = _replace_or_append_section(result, heading, existing_sections[heading])
     return result.rstrip() + "\n"
 
 

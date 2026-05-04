@@ -260,3 +260,35 @@ def test_sync_renames_file_when_page_title_changes(tmp_path: Path):
     assert previous_path in result.deleted
     assert not previous_path.exists()
     assert renamed_path.exists()
+
+
+def test_sync_preserves_local_editable_card_sections(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+    meetings_dir = tmp_path / "Meetings"
+    previous_path = meetings_dir / "Single Meeting.md"
+    previous_path.parent.mkdir(parents=True)
+    previous_path.write_text(
+        "# Single Meeting\n\nOld body from Notion.\n\n## Resumen\n\nResumen local.\n\n## Tareas\n\n- [x] Tarea local\n",
+        encoding="utf-8",
+    )
+    state_path = tmp_path / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{'
+        '"page-1":{"file_path":"' + previous_path.as_posix() + '","last_edited_time":"old","title":"Single Meeting"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
+
+    saved = previous_path.read_text(encoding="utf-8")
+    assert "Notes" in saved
+    assert "Old body from Notion." not in saved
+    assert "## Resumen\n\nResumen local." in saved
+    assert "## Tareas\n\n- [x] Tarea local" in saved
