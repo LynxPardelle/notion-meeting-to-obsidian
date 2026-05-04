@@ -67,6 +67,22 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=400, detail="Path is outside the configured meetings folder.")
         return candidate
 
+    def page_state_for_path(config: Config, note_path: Path) -> dict[str, Any]:
+        state = SyncState.load(config.state_path)
+        resolved = note_path.resolve()
+        for page in state.pages.values():
+            raw_path = page.get("file_path")
+            if raw_path and Path(raw_path).resolve() == resolved:
+                return page
+        return {}
+
+    def metadata_value(page_state: dict[str, Any], names: set[str]) -> str:
+        normalized_names = {name.casefold() for name in names}
+        for item in page_state.get("metadata", []):
+            if str(item.get("name", "")).casefold() in normalized_names:
+                return str(item.get("value", ""))
+        return ""
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -142,11 +158,13 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Note not found.")
         markdown = note_path.read_text(encoding="utf-8")
         card = parse_meeting_card(markdown)
+        page_state = page_state_for_path(config, note_path)
+        summary = card.summary or metadata_value(page_state, {"Summary", "Resumen"})
         return {
             "path": str(note_path),
             "markdown": markdown,
             "card": {
-                "summary": card.summary,
+                "summary": summary,
                 "tasks": [task.__dict__ for task in card.tasks],
                 "notes": card.notes,
             },

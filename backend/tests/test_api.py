@@ -44,6 +44,48 @@ def test_read_note_returns_meeting_card(tmp_path, monkeypatch):
     assert payload["card"]["notes"] == "Detalle."
 
 
+def test_read_note_uses_notion_summary_metadata_when_markdown_summary_is_empty(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    note_path = vault / "Meetings" / "Demo.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text("# Demo\n\nContenido de la nota.\n", encoding="utf-8")
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{"page-1":{'
+        '"file_path":"' + note_path.as_posix() + '",'
+        '"metadata":[{"name":"Summary","type":"rich_text","value":"Resumen desde Notion"}]'
+        "}}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/notes/read", params={"path": str(note_path)})
+
+    assert response.status_code == 200
+    assert response.json()["card"]["summary"] == "Resumen desde Notion"
+
+
+def test_read_note_keeps_local_markdown_summary_over_notion_metadata(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    note_path = vault / "Meetings" / "Demo.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text("# Demo\n\n## Resumen\n\nResumen local.\n", encoding="utf-8")
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{"page-1":{'
+        '"file_path":"' + note_path.as_posix() + '",'
+        '"metadata":[{"name":"Summary","type":"rich_text","value":"Resumen desde Notion"}]'
+        "}}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/notes/read", params={"path": str(note_path)})
+
+    assert response.status_code == 200
+    assert response.json()["card"]["summary"] == "Resumen local."
+
+
 def test_save_note_card_updates_only_structured_sections(tmp_path, monkeypatch):
     client, vault = configured_client(tmp_path, monkeypatch)
     note_path = vault / "Meetings" / "Demo.md"
