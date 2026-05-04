@@ -112,6 +112,14 @@ export class AppComponent {
     this.markdown.set(value);
   }
 
+  saveCurrentView(): void {
+    if (this.viewMode() === 'markdown') {
+      this.save();
+      return;
+    }
+    this.saveCard();
+  }
+
   setViewMode(mode: ViewMode): void {
     if (mode === 'card' && this.markdownDirty() && !window.confirm('Hay cambios Markdown sin guardar. ¿Salir sin guardar?')) {
       return;
@@ -144,6 +152,17 @@ export class AppComponent {
 
   removeTask(index: number): void {
     this.card.set({ ...this.card(), tasks: this.card().tasks.filter((_, current) => current !== index) });
+  }
+
+  canSaveCurrentView(): boolean {
+    if (this.busy() || !this.selectedPath()) {
+      return false;
+    }
+    return this.viewMode() === 'markdown' ? this.markdownDirty() : this.cardDirty();
+  }
+
+  currentSaveLabel(): string {
+    return this.viewMode() === 'markdown' ? 'Guardar Markdown' : 'Guardar ficha';
   }
 
   saveCard(): void {

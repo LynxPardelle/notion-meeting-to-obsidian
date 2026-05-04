@@ -64,7 +64,7 @@
       <div class="toolbar-actions">
         <span class="status">{{ status() }}</span>
         <a class="notion-link" *ngIf="selectedNote()?.notion_url" [href]="selectedNote()?.notion_url" target="_blank" rel="noreferrer">Notion</a>
-        <button type="button" (click)="save()" [disabled]="busy() || !selectedPath() || viewMode() !== 'markdown'">Guardar Markdown</button>
+        <button type="button" (click)="saveCurrentView()" [disabled]="!canSaveCurrentView()">{{ currentSaveLabel() }}</button>
       </div>
     </header>
 
@@ -76,7 +76,10 @@
               <p class="eyebrow">Ficha de reunión</p>
               <h3>{{ selectedName() }}</h3>
             </div>
-            <button type="button" class="secondary" (click)="setViewMode('markdown')">Editar Markdown</button>
+            <div class="card-header-actions">
+              <button type="button" (click)="saveCard()" [disabled]="busy() || !cardDirty()">Guardar ficha</button>
+              <button type="button" class="secondary" (click)="setViewMode('markdown')">Editar Markdown</button>
+            </div>
           </div>
 
           <label class="field-block">

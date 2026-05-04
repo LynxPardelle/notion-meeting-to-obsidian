@@ -336,6 +336,7 @@ button.secondary {
 }
 
 .card-header,
+.card-header-actions,
 .section-row,
 .card-actions,
 .markdown-header {
@@ -343,6 +344,11 @@ button.secondary {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.card-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .meeting-card h3,
