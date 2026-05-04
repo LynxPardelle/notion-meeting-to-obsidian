@@ -39,12 +39,46 @@ Notas libres.
     assert card.notes == "Notas libres."
 
 
-def test_parse_meeting_card_returns_empty_values_for_missing_sections():
+def test_parse_meeting_card_uses_plain_body_as_notes_when_sections_are_missing():
     card = parse_meeting_card("# Demo\n\nContenido sin secciones.\n")
 
     assert card.summary == ""
     assert card.tasks == []
-    assert card.notes == ""
+    assert card.notes == "Contenido sin secciones."
+
+
+def test_parse_meeting_card_uses_unsectioned_notion_body_as_notes():
+    markdown = """---
+title: "Demo"
+---
+
+# Demo
+
+Texto generado por Notion sin encabezados estructurados.
+
+Otra linea de contexto.
+"""
+
+    card = parse_meeting_card(markdown)
+
+    assert card.summary == ""
+    assert card.tasks == []
+    assert card.notes == "Texto generado por Notion sin encabezados estructurados.\n\nOtra linea de contexto."
+
+
+def test_parse_meeting_card_prefers_explicit_notes_section_over_unsectioned_body():
+    markdown = """# Demo
+
+Intro que no debe reemplazar la seccion explicita.
+
+## Notas
+
+Notas estructuradas.
+"""
+
+    card = parse_meeting_card(markdown)
+
+    assert card.notes == "Notas estructuradas."
 
 
 def test_update_meeting_card_sections_preserves_frontmatter_and_unknown_sections():

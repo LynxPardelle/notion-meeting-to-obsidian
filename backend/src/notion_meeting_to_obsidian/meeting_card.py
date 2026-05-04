@@ -23,10 +23,11 @@ class MeetingCard:
 
 def parse_meeting_card(markdown: str) -> MeetingCard:
     sections = _section_map(markdown)
+    notes = sections.get("Notas", "").strip()
     return MeetingCard(
         summary=sections.get("Resumen", "").strip(),
         tasks=_parse_tasks(sections.get("Tareas", "")),
-        notes=sections.get("Notas", "").strip(),
+        notes=notes or _unsectioned_body(markdown),
     )
 
 
@@ -53,6 +54,29 @@ def _section_map(markdown: str) -> dict[str, str]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(markdown)
         sections[heading] = markdown[start:end].strip()
     return sections
+
+
+def _unsectioned_body(markdown: str) -> str:
+    body = _strip_frontmatter(markdown)
+    first_section = HEADING_RE.search(body)
+    if first_section:
+        body = body[: first_section.start()]
+    lines = body.splitlines()
+    while lines and not lines[0].strip():
+        lines = lines[1:]
+    if lines and lines[0].startswith("# "):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def _strip_frontmatter(markdown: str) -> str:
+    if not markdown.startswith("---"):
+        return markdown
+    end = markdown.find("\n---", 3)
+    if end == -1:
+        return markdown
+    after = markdown.find("\n", end + 4)
+    return markdown[after + 1 :] if after != -1 else ""
 
 
 def _parse_tasks(raw: str) -> list[MeetingTask]:
