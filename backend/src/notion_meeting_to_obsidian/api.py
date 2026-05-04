@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .config import Config, ConfigError
+from .meeting_card import MeetingCard, MeetingTask, parse_meeting_card, update_meeting_card_sections
 from .notion import NotionApiError
 from .state import SyncState
 from .sync import MeetingSyncService
@@ -16,6 +17,22 @@ from .sync import MeetingSyncService
 class SaveNoteRequest(BaseModel):
     path: str
     markdown: str
+
+
+class MeetingTaskPayload(BaseModel):
+    text: str
+    checked: bool = False
+
+
+class MeetingCardPayload(BaseModel):
+    summary: str = ""
+    tasks: list[MeetingTaskPayload] = []
+    notes: str = ""
+
+
+class SaveMeetingCardRequest(BaseModel):
+    path: str
+    card: MeetingCardPayload
 
 
 class DraftRequest(BaseModel):
@@ -118,12 +135,22 @@ def create_app() -> FastAPI:
         return notes
 
     @app.get("/notes/read")
-    def read_note(path: str) -> dict[str, str]:
+    def read_note(path: str) -> dict[str, Any]:
         config = load_config()
         note_path = safe_note_path(config, path)
         if not note_path.exists():
             raise HTTPException(status_code=404, detail="Note not found.")
-        return {"path": str(note_path), "markdown": note_path.read_text(encoding="utf-8")}
+        markdown = note_path.read_text(encoding="utf-8")
+        card = parse_meeting_card(markdown)
+        return {
+            "path": str(note_path),
+            "markdown": markdown,
+            "card": {
+                "summary": card.summary,
+                "tasks": [task.__dict__ for task in card.tasks],
+                "notes": card.notes,
+            },
+        }
 
     @app.post("/notes/save")
     def save_note(payload: SaveNoteRequest) -> dict[str, str]:
@@ -131,6 +158,21 @@ def create_app() -> FastAPI:
         note_path = safe_note_path(config, payload.path)
         note_path.parent.mkdir(parents=True, exist_ok=True)
         note_path.write_text(payload.markdown, encoding="utf-8", newline="\n")
+        return {"path": str(note_path), "status": "saved"}
+
+    @app.post("/notes/card/save")
+    def save_note_card(payload: SaveMeetingCardRequest) -> dict[str, str]:
+        config = load_config()
+        note_path = safe_note_path(config, payload.path)
+        if not note_path.exists():
+            raise HTTPException(status_code=404, detail="Note not found.")
+        markdown = note_path.read_text(encoding="utf-8")
+        card = MeetingCard(
+            summary=payload.card.summary,
+            tasks=[MeetingTask(text=task.text, checked=task.checked) for task in payload.card.tasks],
+            notes=payload.card.notes,
+        )
+        note_path.write_text(update_meeting_card_sections(markdown, card), encoding="utf-8", newline="\n")
         return {"path": str(note_path), "status": "saved"}
 
     @app.post("/draft")
