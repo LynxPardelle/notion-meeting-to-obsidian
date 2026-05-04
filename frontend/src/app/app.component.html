@@ -64,7 +64,6 @@
       <div class="toolbar-actions">
         <span class="status">{{ status() }}</span>
         <a class="notion-link" *ngIf="selectedNote()?.notion_url" [href]="selectedNote()?.notion_url" target="_blank" rel="noreferrer">Notion</a>
-        <button type="button" (click)="saveCurrentView()" [disabled]="!canSaveCurrentView()">{{ currentSaveLabel() }}</button>
       </div>
     </header>
 
