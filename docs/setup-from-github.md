@@ -114,7 +114,7 @@ The app will create or update this folder inside the vault:
 Meetings
 ```
 
-Do not store manual notes inside `Meetings` unless you want the sync to manage that folder. The app treats `Meetings` as a mirror of the selected Notion source tree.
+The app treats Notion-generated Markdown files inside `Meetings` as a mirror of the selected Notion source tree. Manual notes without Notion frontmatter are left alone, but it is still cleaner to keep personal notes outside `Meetings`.
 
 ## Create The `.env` File
 

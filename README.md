@@ -101,6 +101,7 @@ If you change ports in `.env`, open the matching URLs. For example, `FRONTEND_PO
 - Queries a Notion database source or a single Notion page through the official API.
 - Recursively follows Notion child pages and writes parent pages inside their own child folders for cleaner Obsidian browsing.
 - Detects new or changed pages using `last_edited_time`.
+- Uses delta-style file updates: unchanged notes are skipped, timestamp-only Notion changes do not rewrite identical Markdown, and cleanup only removes Markdown files that are known Notion-generated files.
 - Converts common Notion blocks into Markdown.
 - Writes `.md` files into `OBSIDIAN_VAULT_PATH\OBSIDIAN_MEETINGS_FOLDER`.
 - Deletes stale synced files when the corresponding Notion page is no longer present.
