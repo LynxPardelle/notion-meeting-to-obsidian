@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from .config import Config
 from .converter import extract_title, page_to_markdown
@@ -10,6 +11,11 @@ from .metadata import notion_properties_to_metadata
 from .notion import NotionApiError, NotionClient
 from .state import SyncState
 from .writer import safe_filename, write_markdown
+
+
+VOLATILE_FRONTMATTER_KEYS = {"last_edited_time", "synced_at"}
+FRONTMATTER_FIELD_RE = re.compile(r"^([A-Za-z0-9_-]+):")
+NOTION_ID_RE = re.compile(r'^notion_id:\s*["\']?([^"\'\n]+)["\']?\s*$', re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -70,6 +76,25 @@ class MeetingSyncService:
             existing_path = previous_raw_path
             if existing_path and (Path(existing_path).parent != target_dir or title_changed):
                 existing_path = None
+            if existing_path and not self._semantic_markdown_changed(markdown, Path(existing_path)):
+                file_path = Path(existing_path)
+                state.mark_synced(
+                    page_id,
+                    page.get("last_edited_time", last_edited_time),
+                    file_path,
+                    extract_title(page),
+                    notion_url=page.get("url", ""),
+                    created_time=page.get("created_time", ""),
+                    metadata=notion_properties_to_metadata(page.get("properties", {})),
+                    parent_id=parent_id,
+                    depth=depth,
+                    source_id=source_id,
+                    source_label=source_label,
+                )
+                skipped.append(
+                    SyncedNote(page_id, extract_title(page), file_path, changed=False, parent_id=parent_id, depth=depth)
+                )
+                continue
             file_path = write_markdown(
                 self.config.meetings_dir,
                 extract_title(page),
@@ -266,21 +291,58 @@ class MeetingSyncService:
         return [previous_path]
 
     def _delete_unlisted_meeting_files(self, state: SyncState, active_page_ids: list[str]) -> list[Path]:
-        active = set(active_page_ids)
         protected_paths = {
             Path(page["file_path"]).resolve()
             for page_id, page in state.pages.items()
-            if page_id in active and page.get("file_path")
+            if page_id in set(active_page_ids) and page.get("file_path")
         }
         deleted: list[Path] = []
         for file_path in self.config.meetings_dir.rglob("*.md"):
             resolved = file_path.resolve()
             if resolved in protected_paths:
                 continue
+            if self._notion_id_from_markdown(file_path) is None:
+                continue
             file_path.unlink()
             deleted.append(file_path)
             self._remove_empty_parent_dirs(file_path.parent)
         return deleted
+
+    def _semantic_markdown_changed(self, markdown: str, existing_path: Path) -> bool:
+        if not existing_path.exists():
+            return True
+        current = existing_path.read_text(encoding="utf-8")
+        return self._stable_markdown(markdown) != self._stable_markdown(current)
+
+    def _stable_markdown(self, markdown: str) -> str:
+        if not markdown.startswith("---\n"):
+            return markdown
+        end = markdown.find("\n---", 4)
+        if end == -1:
+            return markdown
+        frontmatter = markdown[4:end].splitlines()
+        stable_lines: list[str] = []
+        for line in frontmatter:
+            match = FRONTMATTER_FIELD_RE.match(line)
+            if match and match.group(1) in VOLATILE_FRONTMATTER_KEYS:
+                continue
+            stable_lines.append(line)
+        return "---\n" + "\n".join(stable_lines) + markdown[end:]
+
+    def _notion_id_from_markdown(self, file_path: Path) -> str | None:
+        try:
+            text = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        if not text.startswith("---\n"):
+            return None
+        end = text.find("\n---", 4)
+        if end == -1:
+            return None
+        match = NOTION_ID_RE.search(text[:end])
+        if not match:
+            return None
+        return match.group(1).strip()
 
     def _is_safe_meeting_file(self, file_path: Path) -> bool:
         try:

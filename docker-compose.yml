@@ -9,7 +9,7 @@ services:
       OBSIDIAN_MEETINGS_FOLDER: ${OBSIDIAN_MEETINGS_FOLDER:-Meetings}
       SYNC_STATE_PATH: /vault/.notion-meeting-sync/state.json
     ports:
-      - "127.0.0.1:8765:8765"
+      - "${BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-8765}:8765"
     volumes:
       - type: bind
         source: ${HOST_OBSIDIAN_VAULT_PATH:-./vault}
@@ -21,4 +21,4 @@ services:
     depends_on:
       - backend
     ports:
-      - "127.0.0.1:47863:8080"
+      - "${BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-47863}:8080"

@@ -78,7 +78,7 @@ export interface SyncResponse {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly baseUrl = 'http://127.0.0.1:8765';
+  private readonly baseUrl = '/api';
 
   constructor(private readonly http: HttpClient) {}
 

@@ -26,6 +26,22 @@ def test_sync_preflight_allows_docker_frontend_origin():
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:47863"
 
 
+def test_sync_preflight_allows_configured_frontend_port(monkeypatch):
+    monkeypatch.setenv("FRONTEND_PORT", "49123")
+    client = TestClient(create_app())
+
+    response = client.options(
+        "/sync?force=false",
+        headers={
+            "Origin": "http://127.0.0.1:49123",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:49123"
+
+
 def test_read_note_returns_meeting_card(tmp_path, monkeypatch):
     client, vault = configured_client(tmp_path, monkeypatch)
     note_path = vault / "Meetings" / "Demo.md"

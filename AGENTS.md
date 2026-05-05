@@ -10,13 +10,14 @@ This repository is a local tool that syncs Notion Meeting AI notes into Obsidian
 - Frontend: Angular, TypeScript, RxJS.
 - Integration: official Notion REST API.
 - Output: Markdown files written into a local Obsidian vault.
-- Runtime model: local-first; the backend runs on `127.0.0.1:8765` and the frontend is a local Angular app.
+- Runtime model: local-first; Docker defaults to backend `127.0.0.1:8765` and frontend `127.0.0.1:47863`, both configurable through environment variables.
 
 ## Repository Layout
 
 - `backend/`: Python package, CLI, FastAPI API, Notion client, sync orchestration, Markdown conversion, state handling, writer, tests.
 - `frontend/`: Angular editor UI for sync, note list, Markdown editing, preview, and save actions.
 - `docs/`: user guides, audits, implementation notes, and project context.
+- `docs/codebase/`: generated codebase knowledge for humans and AI agents.
 - `docker-compose.yml`: local container orchestration when using Docker.
 
 ## Branching Workflow
@@ -77,6 +78,8 @@ Docker:
 docker compose up -d
 ```
 
+Open the app at `http://127.0.0.1:47863` unless `FRONTEND_PORT` is changed in `.env`.
+
 ## Environment Variables
 
 Required:
@@ -89,6 +92,14 @@ Optional:
 
 - `OBSIDIAN_MEETINGS_FOLDER`
 - `SYNC_STATE_PATH`
+- `HOST_OBSIDIAN_VAULT_PATH`
+- `NOTION_SOURCE_IDS`
+- `NOTION_SYNC_ALL_ACCESSIBLE`
+- `OBSIDIAN_DELETE_STALE_SYNCED_NOTES`
+- `BIND_HOST`
+- `FRONTEND_PORT`
+- `BACKEND_PORT`
+- `CORS_ALLOW_ORIGINS`
 
 Use `.env.example` as the template. Never commit real `.env` files or secrets.
 
@@ -99,6 +110,7 @@ Backend responsibilities:
 - Read and validate runtime configuration.
 - Query Notion database pages and block children.
 - Detect new or changed pages using `last_edited_time`.
+- Use delta-style local file updates: unchanged Markdown is skipped, timestamp-only changes do not rewrite files, and cleanup targets known Notion-generated files.
 - Convert Notion content into Markdown with YAML frontmatter.
 - Write Markdown files into the configured Obsidian vault folder.
 - Persist sync state in JSON.
@@ -123,6 +135,8 @@ Frontend responsibilities:
 - `backend/src/notion_meeting_to_obsidian/cli.py`: CLI entrypoint.
 - `frontend/src/app/api.service.ts`: frontend API client.
 - `frontend/src/app/app.component.ts`: main Angular UI behavior.
+- `frontend/nginx.conf`: serves the built Angular app and proxies `/api` to the backend in Docker.
+- `frontend/scripts/start-dev-server.mjs`: loads `.env` and starts Angular dev server with dynamic ports.
 
 ## Testing Expectations
 
@@ -142,6 +156,8 @@ npm run build
 
 When touching API contracts, verify both backend endpoints and frontend callers.
 
+When touching sync behavior, add or update tests in `backend/tests/test_sync.py` before changing production code.
+
 ## Safety Rules For AI Agents
 
 - Read relevant files before editing.
@@ -152,9 +168,10 @@ When touching API contracts, verify both backend endpoints and frontend callers.
 - Do not push to the remote without explicit maintainer approval.
 - If working locally, start from `development` unless instructed otherwise.
 - If branch protection is unavailable, still follow the PR workflow manually.
+- Keep `docs/codebase/` and this file current when architecture, setup, sync behavior, or environment variables change.
 
 ## Known Context
 
-The intended flow is Notion Meeting AI to Markdown to Obsidian, with optional review/editing in the Angular UI. The project is local-first and should not require a hosted backend for normal use.
+The intended flow is Notion Meeting AI to Markdown to Obsidian, with optional review/editing in the Angular UI. The project is local-first and should not require a hosted backend for normal use. The frontend calls `/api`; Docker's Nginx proxy forwards that to the backend service, while local `npm start` uses `frontend/proxy.conf.js`.
 
 GitHub branch protection for private repositories may require a paid GitHub plan. If protection is unavailable, treat `main` as socially locked: only merge into it after review and testing.

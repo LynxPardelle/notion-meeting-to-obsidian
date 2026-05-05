@@ -114,7 +114,7 @@ The app will create or update this folder inside the vault:
 Meetings
 ```
 
-Do not store manual notes inside `Meetings` unless you want the sync to manage that folder. The app treats `Meetings` as a mirror of the selected Notion source tree.
+The app treats Notion-generated Markdown files inside `Meetings` as a mirror of the selected Notion source tree. Manual notes without Notion frontmatter are left alone, but it is still cleaner to keep personal notes outside `Meetings`.
 
 ## Create The `.env` File
 
@@ -136,6 +136,10 @@ SYNC_STATE_PATH=
 HOST_OBSIDIAN_VAULT_PATH=C:\Users\your-user\Documents\Obsidian Vault
 NOTION_SYNC_ALL_ACCESSIBLE=false
 OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true
+BIND_HOST=127.0.0.1
+FRONTEND_PORT=47863
+BACKEND_PORT=8765
+CORS_ALLOW_ORIGINS=
 ```
 
 For Docker on Windows, `HOST_OBSIDIAN_VAULT_PATH` is the important host path. Docker Compose mounts that folder into the backend container as `/vault`.
@@ -148,6 +152,9 @@ HOST_OBSIDIAN_VAULT_PATH
 ```
 
 unless you know you need a custom setup.
+
+`FRONTEND_PORT` controls the web app URL on your computer. `BACKEND_PORT` controls the direct API URL. Keep the defaults unless another local app is already using one of those ports.
+`CORS_ALLOW_ORIGINS` is optional and normally stays empty.
 
 ## Run With Docker
 
@@ -162,7 +169,7 @@ docker compose up --build -d
 Open the app:
 
 ```txt
-http://127.0.0.1:4200
+http://127.0.0.1:47863
 ```
 
 Backend health check:
@@ -170,6 +177,8 @@ Backend health check:
 ```txt
 http://127.0.0.1:8765/health
 ```
+
+If you changed `FRONTEND_PORT` or `BACKEND_PORT` in `.env`, use those values in the URLs. For example, `FRONTEND_PORT=4300` means `http://127.0.0.1:4300`.
 
 Expected health response:
 
@@ -240,11 +249,11 @@ Restart:
 docker compose up --build -d
 ```
 
-### Old Notes Are Deleted
+### Old Notion Notes Are Deleted
 
-This is expected inside the configured `Meetings` folder. The app mirrors the selected Notion source tree and removes Markdown files in `Meetings` that are no longer active in Notion.
+This is expected for Notion-generated files inside the configured `Meetings` folder. The app mirrors the selected Notion source tree and removes Markdown files that are no longer active in Notion when they are tracked in sync state or contain Notion frontmatter.
 
-Keep personal/manual notes outside `Meetings`.
+Manual notes without Notion frontmatter are preserved. Keeping personal notes outside `Meetings` is still recommended because that folder is primarily managed by the sync.
 
 ### Obsidian Does Not Refresh
 
@@ -253,4 +262,3 @@ Try:
 - Close and reopen Obsidian.
 - Use Obsidian's file explorer refresh.
 - Confirm the files exist in Windows Explorer under your vault's `Meetings` folder.
-

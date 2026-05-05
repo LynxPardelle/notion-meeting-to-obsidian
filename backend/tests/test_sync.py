@@ -35,6 +35,13 @@ class PageOnlyNotion:
         return self.retrieve_block_children(block_id)
 
 
+class SameMarkdownNewTimestampNotion(PageOnlyNotion):
+    def retrieve_page(self, page_id: str):
+        page = super().retrieve_page(page_id)
+        page["last_edited_time"] = "2026-04-29T00:00:00.000Z"
+        return page
+
+
 def test_sync_accepts_page_source_when_database_is_not_found(tmp_path: Path):
     config = Config(
         notion_token="secret",
@@ -268,14 +275,55 @@ def test_sync_deletes_stale_synced_notes_when_enabled(tmp_path: Path):
 
     result = MeetingSyncService(config, notion=PageOnlyNotion()).sync(force=True)
 
-    assert set(result.deleted) == {stale, stale_root, orphan_generated, duplicate_active, manual_note}
+    assert set(result.deleted) == {stale, stale_root, orphan_generated, duplicate_active}
     assert not stale.exists()
     assert not stale.parent.exists()
     assert not stale_root.exists()
     assert not orphan_generated.exists()
     assert not duplicate_active.exists()
-    assert not manual_note.exists()
+    assert manual_note.exists()
     assert (meetings_dir / "Single Meeting.md").exists()
+
+
+def test_sync_skips_file_write_when_only_notion_timestamps_changed(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="page-1",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+    meetings_dir = tmp_path / "Meetings"
+    previous_path = meetings_dir / "Single Meeting.md"
+    previous_path.parent.mkdir(parents=True)
+    original_markdown = (
+        "---\n"
+        'title: "Single Meeting"\n'
+        'notion_id: "page-1"\n'
+        'notion_url: "https://notion.so/page"\n'
+        'last_edited_time: "2026-04-28T00:00:00.000Z"\n'
+        'synced_at: "2026-04-28T01:00:00+00:00"\n'
+        "---\n\n"
+        "# Single Meeting\n\n"
+        "Notes\n"
+    )
+    previous_path.write_text(original_markdown, encoding="utf-8")
+    state_path = tmp_path / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"pages":{'
+        '"page-1":{"file_path":"'
+        + previous_path.as_posix()
+        + '","last_edited_time":"2026-04-28T00:00:00.000Z","title":"Single Meeting"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    result = MeetingSyncService(config, notion=SameMarkdownNewTimestampNotion()).sync()
+
+    assert result.synced == []
+    assert [note.page_id for note in result.skipped] == ["page-1"]
+    assert previous_path.read_text(encoding="utf-8") == original_markdown
+    assert '"last_edited_time": "2026-04-29T00:00:00.000Z"' in state_path.read_text(encoding="utf-8")
 
 
 def test_sync_deletes_previous_file_when_note_moves_under_parent(tmp_path: Path):
