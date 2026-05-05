@@ -8,6 +8,15 @@ import { ApiService, MeetingCard, NoteSummary } from './api.service';
 type ThemePreference = 'light' | 'dark';
 type ViewMode = 'card' | 'markdown';
 
+interface NoteTreeItem {
+  note: NoteSummary;
+  key: string;
+  parentKey: string | null;
+  depth: number;
+  hasChildren: boolean;
+  childCount: number;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -38,7 +47,8 @@ export class AppComponent {
 
   readonly selectedMetadata = computed(() => this.selectedNote()?.metadata ?? []);
   readonly preview = computed(() => this.renderPreview(this.markdown()));
-  readonly visibleNotes = computed(() => this.notes().filter((note) => !this.isHiddenByCollapsedAncestor(note)));
+  readonly treeItems = computed(() => this.buildTreeItems(this.notes()));
+  readonly visibleTreeItems = computed(() => this.treeItems().filter((item) => !this.isHiddenByCollapsedAncestor(item)));
   readonly cardDirty = computed(() => JSON.stringify(this.card()) !== JSON.stringify(this.savedCard()));
   readonly markdownDirty = computed(() => this.markdown() !== this.savedMarkdown());
 
@@ -65,7 +75,7 @@ export class AppComponent {
     this.api.listNotes().subscribe({
       next: (notes) => {
         this.notes.set(notes);
-        this.collapsedKeys.set(this.collapsibleKeys(notes));
+        this.collapsedKeys.set(this.collapsibleKeys(this.buildTreeItems(notes)));
       },
       error: (error) => this.fail(error)
     });
@@ -200,12 +210,15 @@ export class AppComponent {
     this.setThemePreference(this.themePreference() === 'dark' ? 'light' : 'dark');
   }
 
-  noteDepth(note: NoteSummary): number {
-    return Math.max(0, this.relativeParts(note).length - 1);
+  treeIndent(item: NoteTreeItem): string {
+    return `${item.depth * 18}px`;
   }
 
-  treeIndent(note: NoteSummary): string {
-    return `${this.noteDepth(note) * 18}px`;
+  itemParentLabel(item: NoteTreeItem): string {
+    if (!item.parentKey) {
+      return '';
+    }
+    return item.parentKey.split('/').at(-1) ?? item.parentKey;
   }
 
   noteSubtitle(note: NoteSummary): string {
@@ -231,23 +244,17 @@ export class AppComponent {
     }).format(date);
   }
 
-  hasChildren(note: NoteSummary): boolean {
-    const key = this.treeKey(note);
-    return this.notes().some((candidate) => this.parentKeys(candidate).includes(key));
+  isCollapsed(item: NoteTreeItem): boolean {
+    return this.collapsedKeys().has(item.key);
   }
 
-  isCollapsed(note: NoteSummary): boolean {
-    return this.collapsedKeys().has(this.treeKey(note));
-  }
-
-  toggleCollapsed(note: NoteSummary, event: Event): void {
+  toggleCollapsed(item: NoteTreeItem, event: Event): void {
     event.stopPropagation();
-    const key = this.treeKey(note);
     const next = new Set(this.collapsedKeys());
-    if (next.has(key)) {
-      next.delete(key);
+    if (next.has(item.key)) {
+      next.delete(item.key);
     } else {
-      next.add(key);
+      next.add(item.key);
     }
     this.collapsedKeys.set(next);
   }
@@ -274,17 +281,83 @@ export class AppComponent {
     return error instanceof Error ? error.message : 'Request failed';
   }
 
-  private isHiddenByCollapsedAncestor(note: NoteSummary): boolean {
-    return this.parentKeys(note).some((key) => this.collapsedKeys().has(key));
+  private isHiddenByCollapsedAncestor(item: NoteTreeItem): boolean {
+    const parts = item.key.split('/');
+    return parts.slice(0, -1).some((_, index) => this.collapsedKeys().has(parts.slice(0, index + 1).join('/')));
   }
 
-  private parentKeys(note: NoteSummary): string[] {
-    const parts = this.relativeParts(note);
-    return parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('/'));
+  private buildTreeItems(notes: NoteSummary[]): NoteTreeItem[] {
+    const provisional = notes.map((note, index) => {
+      const parts = this.hierarchyParts(note);
+      return {
+        note,
+        key: parts.join('/'),
+        parentKey: parts.length > 1 ? parts.slice(0, -1).join('/') : null,
+        depth: Math.max(0, parts.length - 1),
+        index
+      };
+    });
+    const directChildren = new Map<string, number>();
+    for (const item of provisional) {
+      if (!item.parentKey) {
+        continue;
+      }
+      directChildren.set(item.parentKey, (directChildren.get(item.parentKey) ?? 0) + 1);
+    }
+    return provisional
+      .map((item) => ({
+        note: item.note,
+        key: item.key,
+        parentKey: item.parentKey,
+        depth: item.depth,
+        hasChildren: directChildren.has(item.key),
+        childCount: directChildren.get(item.key) ?? 0,
+        index: item.index
+      }))
+      .sort((left, right) => this.compareTreeItems(left, right))
+      .map(({ index: _index, ...item }) => item);
   }
 
-  private treeKey(note: NoteSummary): string {
-    return this.relativeParts(note).join('/');
+  private compareTreeItems(left: NoteTreeItem & { index: number }, right: NoteTreeItem & { index: number }): number {
+    const leftParts = left.key.split('/');
+    const rightParts = right.key.split('/');
+    const shared = Math.min(leftParts.length, rightParts.length);
+    for (let index = 0; index < shared; index += 1) {
+      const comparison = leftParts[index].localeCompare(rightParts[index], 'es', { sensitivity: 'base' });
+      if (comparison !== 0) {
+        return comparison;
+      }
+    }
+    if (leftParts.length !== rightParts.length) {
+      return leftParts.length - rightParts.length;
+    }
+    return left.index - right.index;
+  }
+
+  private hierarchyParts(note: NoteSummary): string[] {
+    if (note.parent) {
+      return this.compactRepeatedParts([...this.splitTreePath(note.parent), note.name]);
+    }
+    return this.relativeParts(note);
+  }
+
+  private splitTreePath(value: string): string[] {
+    return value
+      .split(/[\\/]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  private compactRepeatedParts(parts: string[]): string[] {
+    const compacted: string[] = [];
+    for (const part of parts) {
+      const previous = compacted.at(-1);
+      if (previous && this.normalizeTreePart(previous) === this.normalizeTreePart(part)) {
+        continue;
+      }
+      compacted.push(part);
+    }
+    return compacted;
   }
 
   private relativeParts(note: NoteSummary): string[] {
@@ -308,14 +381,8 @@ export class AppComponent {
     return value.trim().toLowerCase();
   }
 
-  private collapsibleKeys(notes: NoteSummary[]): Set<string> {
-    const keys = new Set<string>();
-    for (const note of notes) {
-      for (const key of this.parentKeys(note)) {
-        keys.add(key);
-      }
-    }
-    return keys;
+  private collapsibleKeys(items: NoteTreeItem[]): Set<string> {
+    return new Set(items.filter((item) => item.hasChildren).map((item) => item.key));
   }
 
   private loadThemePreference(): void {

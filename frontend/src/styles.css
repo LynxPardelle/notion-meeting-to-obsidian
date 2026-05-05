@@ -195,6 +195,11 @@ button.secondary {
   font-size: 14px;
 }
 
+.note-list button.has-children .note-name {
+  color: var(--ink);
+  font-weight: 650;
+}
+
 .node-spacer,
 .tree-toggle {
   flex: 0 0 auto;
@@ -246,9 +251,28 @@ button.secondary {
 }
 
 .note-name {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.child-count {
+  align-items: center;
+  background: var(--active-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 5px;
 }
 
 .note-list button.active,
