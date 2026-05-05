@@ -180,6 +180,31 @@ def create_app() -> FastAPI:
             )
         return notes
 
+    @app.get("/note-sources")
+    def list_note_sources() -> list[dict[str, Any]]:
+        config = load_config()
+        state = SyncState.load(config.state_path)
+        counts: dict[str, int] = {}
+        for page_id, page in state.pages.items():
+            if state.active_page_ids and page_id not in state.active_page_ids:
+                continue
+            source_id = str(page.get("source_id", ""))
+            if not source_id:
+                continue
+            counts[source_id] = counts.get(source_id, 0) + 1
+        sources = [
+            {
+                "id": source_id,
+                "name": str(source.get("name", "")).strip() or "Tabla de Notion",
+                "note_count": counts.get(source_id, 0),
+            }
+            for source_id, source in state.data_sources.items()
+        ]
+        for source_id, count in counts.items():
+            if source_id not in state.data_sources:
+                sources.append({"id": source_id, "name": "Tabla de Notion", "note_count": count})
+        return sorted(sources, key=lambda source: str(source["name"]).casefold())
+
     @app.get("/notes/read")
     def read_note(path: str) -> dict[str, Any]:
         config = load_config()

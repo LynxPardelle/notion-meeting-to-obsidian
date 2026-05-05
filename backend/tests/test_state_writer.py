@@ -46,6 +46,25 @@ def test_state_tracks_parent_and_data_source_metadata(tmp_path: Path):
     assert reloaded.pages["child"]["source_label"] == "Tabla semanal"
 
 
+def test_state_tracks_data_source_catalog(tmp_path: Path):
+    state_path = tmp_path / "state.json"
+    state = SyncState.load(state_path)
+
+    state.mark_data_sources(
+        [
+            {"id": "source-1", "name": "Tabla principal"},
+            {"id": "source-2", "name": "Tabla vacia"},
+        ]
+    )
+    state.save()
+
+    reloaded = SyncState.load(state_path)
+    assert reloaded.data_sources == {
+        "source-1": {"id": "source-1", "name": "Tabla principal"},
+        "source-2": {"id": "source-2", "name": "Tabla vacia"},
+    }
+
+
 def test_state_tracks_active_pages(tmp_path: Path):
     state_path = tmp_path / "state.json"
     state = SyncState.load(state_path)

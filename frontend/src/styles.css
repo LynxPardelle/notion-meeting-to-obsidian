@@ -190,6 +190,58 @@ button.secondary {
   white-space: nowrap;
 }
 
+.source-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.source-chip {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  min-height: 32px;
+  overflow: hidden;
+  padding: 0 9px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.source-chip span {
+  align-items: center;
+  background: var(--active-soft);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  height: 18px;
+  justify-content: center;
+  margin-left: 8px;
+  min-width: 18px;
+  padding: 0 5px;
+}
+
+.source-chip.active,
+.source-chip:hover {
+  background: var(--active);
+}
+
+.empty-source {
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 4px 0 10px;
+  padding: 10px;
+}
+
 .section-label + .source-label {
   border-top: 0;
   margin-top: 0;

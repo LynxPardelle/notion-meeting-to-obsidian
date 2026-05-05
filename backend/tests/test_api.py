@@ -95,6 +95,35 @@ def test_list_notes_uses_synced_parent_and_source_metadata(tmp_path, monkeypatch
     assert child["source_label"] == "Tabla principal"
 
 
+def test_list_note_sources_includes_empty_data_sources(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    note_path = vault / "Meetings" / "Demo.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text("# Demo\n", encoding="utf-8")
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"active_page_ids":["page-1"],'
+        '"data_sources":{'
+        '"source-a":{"id":"source-a","name":"Tabla con notas"},'
+        '"source-b":{"id":"source-b","name":"Tabla vacia"}'
+        '},'
+        '"pages":{'
+        '"page-1":{"file_path":"' + note_path.as_posix() + '","title":"Demo",'
+        '"source_id":"source-a","source_label":"Tabla con notas"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/note-sources")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"id": "source-a", "name": "Tabla con notas", "note_count": 1},
+        {"id": "source-b", "name": "Tabla vacia", "note_count": 0},
+    ]
+
+
 def test_read_note_keeps_local_markdown_summary_over_notion_metadata(tmp_path, monkeypatch):
     client, vault = configured_client(tmp_path, monkeypatch)
     note_path = vault / "Meetings" / "Demo.md"

@@ -26,6 +26,26 @@
 
     <nav class="note-list" aria-label="Synced notes">
       <p class="section-label">Reuniones sincronizadas</p>
+      <div class="source-switcher" *ngIf="sources().length">
+        <button
+          type="button"
+          class="source-chip"
+          [class.active]="!selectedSourceId()"
+          (click)="selectSource('')">
+          Todas <span>{{ totalNoteCount() }}</span>
+        </button>
+        <button
+          type="button"
+          class="source-chip"
+          *ngFor="let source of sources()"
+          [class.active]="selectedSourceId() === source.id"
+          (click)="selectSource(source.id)">
+          {{ source.name }} <span>{{ source.note_count }}</span>
+        </button>
+      </div>
+      <p class="empty-source" *ngIf="selectedSourceId() && !filteredNotes().length">
+        Esta tabla no tiene notas sincronizadas todavía.
+      </p>
       <ng-container *ngFor="let group of visibleSourceGroups()">
         <p class="source-label" *ngIf="shouldShowSourceGroups()">{{ group.label }}</p>
         <button

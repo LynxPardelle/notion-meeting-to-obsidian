@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ApiService, MeetingCard, NoteSummary } from './api.service';
+import { ApiService, MeetingCard, NoteSource, NoteSummary } from './api.service';
 
 type ThemePreference = 'light' | 'dark';
 type ViewMode = 'card' | 'markdown';
@@ -31,6 +31,8 @@ interface NoteSourceGroup {
 })
 export class AppComponent {
   readonly notes = signal<NoteSummary[]>([]);
+  readonly sources = signal<NoteSource[]>([]);
+  readonly selectedSourceId = signal('');
   readonly selectedPath = signal('');
   readonly markdown = signal('');
   readonly savedMarkdown = signal('');
@@ -53,7 +55,12 @@ export class AppComponent {
 
   readonly selectedMetadata = computed(() => this.selectedNote()?.metadata ?? []);
   readonly preview = computed(() => this.renderPreview(this.markdown()));
-  readonly treeItems = computed(() => this.buildTreeItems(this.notes()));
+  readonly filteredNotes = computed(() => {
+    const sourceId = this.selectedSourceId();
+    return sourceId ? this.notes().filter((note) => note.source_id === sourceId) : this.notes();
+  });
+  readonly selectedSource = computed(() => this.sources().find((source) => source.id === this.selectedSourceId()) ?? null);
+  readonly treeItems = computed(() => this.buildTreeItems(this.filteredNotes()));
   readonly visibleTreeItems = computed(() => this.treeItems().filter((item) => !this.isHiddenByCollapsedAncestor(item)));
   readonly visibleSourceGroups = computed(() => this.groupBySource(this.visibleTreeItems()));
   readonly cardDirty = computed(() => JSON.stringify(this.card()) !== JSON.stringify(this.savedCard()));
@@ -82,10 +89,23 @@ export class AppComponent {
     this.api.listNotes().subscribe({
       next: (notes) => {
         this.notes.set(notes);
-        this.collapsedKeys.set(this.collapsibleKeys(this.buildTreeItems(notes)));
+        this.collapsedKeys.set(this.collapsibleKeys(this.buildTreeItems(this.filteredNotes())));
+        this.refreshSources();
       },
       error: (error) => this.fail(error)
     });
+  }
+
+  refreshSources(): void {
+    this.api.listNoteSources().subscribe({
+      next: (sources) => this.sources.set(sources),
+      error: (error) => this.fail(error)
+    });
+  }
+
+  selectSource(sourceId: string): void {
+    this.selectedSourceId.set(sourceId);
+    this.collapsedKeys.set(this.collapsibleKeys(this.buildTreeItems(this.filteredNotes())));
   }
 
   openNote(note: NoteSummary): void {
@@ -244,6 +264,10 @@ export class AppComponent {
   shouldShowSourceGroups(): boolean {
     const groups = this.visibleSourceGroups();
     return groups.length > 1 || (groups[0]?.label ?? '') !== 'Notas sin tabla';
+  }
+
+  totalNoteCount(): number {
+    return this.notes().length;
   }
 
   childPreview(item: NoteTreeItem): string {

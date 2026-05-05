@@ -41,6 +41,7 @@ class MeetingSyncService:
         deleted: list[Path] = []
 
         pages = self._source_pages()
+        state.mark_data_sources(self._source_data_sources())
         active_page_ids: list[str] = []
         for page_summary in pages:
             page_id = page_summary["id"]
@@ -129,6 +130,27 @@ class MeetingSyncService:
                     raise
                 pages.extend(self._page_tree(source_id, seen=seen))
         return pages
+
+    def _source_data_sources(self) -> list[dict[str, str]]:
+        if self.config.sync_all_accessible:
+            return []
+        data_sources: list[dict[str, str]] = []
+        seen: set[str] = set()
+        retrieve_data_sources = getattr(self.notion, "retrieve_database_data_sources", None)
+        if retrieve_data_sources is None:
+            return []
+        for source_id in self.config.notion_source_ids or (self.config.notion_source_id,):
+            try:
+                for data_source in retrieve_data_sources(source_id):
+                    data_source_id = data_source.get("id", "")
+                    if not data_source_id or data_source_id in seen:
+                        continue
+                    seen.add(data_source_id)
+                    data_sources.append(data_source)
+            except NotionApiError as exc:
+                if exc.status not in {400, 404}:
+                    raise
+        return data_sources
 
     def _all_accessible_page_trees(self) -> list[dict]:
         visible_pages = self.notion.search_pages()

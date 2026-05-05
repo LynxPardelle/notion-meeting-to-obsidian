@@ -23,6 +23,12 @@ export interface NoteMetadata {
   value: string;
 }
 
+export interface NoteSource {
+  id: string;
+  name: string;
+  note_count: number;
+}
+
 export interface MeetingTask {
   text: string;
   checked: boolean;
@@ -58,6 +64,10 @@ export class ApiService {
 
   listNotes(): Observable<NoteSummary[]> {
     return this.http.get<NoteSummary[]>(`${this.baseUrl}/notes`);
+  }
+
+  listNoteSources(): Observable<NoteSource[]> {
+    return this.http.get<NoteSource[]>(`${this.baseUrl}/note-sources`);
   }
 
   readNote(path: string): Observable<ReadNoteResponse> {
