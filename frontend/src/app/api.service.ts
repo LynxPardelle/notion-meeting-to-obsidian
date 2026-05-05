@@ -29,6 +29,30 @@ export interface NoteSource {
   note_count: number;
 }
 
+export interface NoteSourceProperty {
+  name: string;
+  type: string;
+  usage_count: number;
+  sample: string;
+}
+
+export interface NoteSourceMapping {
+  date: string | null;
+  notes: string | null;
+  people: string | null;
+  status: string | null;
+  summary: string | null;
+  tasks: string | null;
+}
+
+export interface NoteSourceSchema {
+  id: string;
+  name: string;
+  note_count: number;
+  properties: NoteSourceProperty[];
+  mapping: NoteSourceMapping;
+}
+
 export interface MeetingTask {
   text: string;
   checked: boolean;
@@ -68,6 +92,10 @@ export class ApiService {
 
   listNoteSources(): Observable<NoteSource[]> {
     return this.http.get<NoteSource[]>(`${this.baseUrl}/note-sources`);
+  }
+
+  listNoteSourceSchemas(): Observable<NoteSourceSchema[]> {
+    return this.http.get<NoteSourceSchema[]>(`${this.baseUrl}/note-sources/schema`);
   }
 
   readNote(path: string): Observable<ReadNoteResponse> {

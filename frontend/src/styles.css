@@ -89,14 +89,10 @@ button.secondary {
 }
 
 .brand-mark {
-  align-items: center;
-  background: var(--ink);
   border-radius: 6px;
-  color: white;
-  display: inline-flex;
-  font-weight: 700;
+  display: block;
   height: 42px;
-  justify-content: center;
+  object-fit: contain;
   width: 42px;
 }
 
@@ -267,6 +263,28 @@ button.secondary {
   font-size: 14px;
 }
 
+.note-list button.database-node,
+.note-list button.source-node {
+  color: var(--ink);
+}
+
+.note-list button.database-node .note-name,
+.note-list button.source-node .note-name {
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.note-list button.database-node .note-name {
+  color: var(--accent-strong);
+  text-transform: uppercase;
+}
+
+.note-list button.source-node .note-content {
+  border-left-color: var(--line);
+  padding-left: 10px;
+}
+
 .note-list button.has-children .note-name {
   color: var(--ink);
   font-weight: 650;
@@ -420,6 +438,74 @@ button.secondary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.schema-panel {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.schema-heading {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.schema-heading span,
+.schema-properties p {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.schema-heading strong {
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+.mapping-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.mapping-item,
+.schema-property {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+}
+
+.mapping-item span,
+.schema-property span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mapping-item strong,
+.schema-property strong {
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-item strong.unmapped {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.schema-properties {
+  display: grid;
+  gap: 6px;
 }
 
 .meeting-layout {

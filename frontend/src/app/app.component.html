@@ -1,7 +1,7 @@
 <main class="app-shell">
   <aside class="sidebar">
     <div class="brand">
-      <span class="brand-mark">N/O</span>
+      <img class="brand-mark" src="favicon.ico" alt="Notion to Obsidian" />
       <div>
         <h1>Meeting Notes</h1>
         <p>Notion to Obsidian</p>
@@ -46,42 +46,41 @@
       <p class="empty-source" *ngIf="selectedSourceId() && !filteredNotes().length">
         Esta tabla no tiene notas sincronizadas todavía.
       </p>
-      <ng-container *ngFor="let group of visibleSourceGroups()">
-        <p class="source-label" *ngIf="shouldShowSourceGroups()">{{ group.label }}</p>
-        <button
-          type="button"
-          *ngFor="let item of group.items"
-          [class.active]="item.note.path === selectedPath()"
-          [class.child]="item.depth > 0"
-          [class.has-children]="item.hasChildren"
-          [style.--depth-offset]="treeIndent(item)"
-          (click)="openNote(item.note)">
-          <span class="node-spacer" *ngIf="!item.hasChildren" aria-hidden="true"></span>
-          <span
-            class="tree-toggle"
-            *ngIf="item.hasChildren"
-            role="button"
-            tabindex="0"
-            [attr.aria-label]="isCollapsed(item) ? 'Expandir grupo de notas' : 'Cerrar grupo de notas'"
-            [attr.aria-expanded]="!isCollapsed(item)"
-            (click)="toggleCollapsed(item, $event)"
-            (keydown.enter)="toggleCollapsed(item, $event)"
-            (keydown.space)="toggleCollapsed(item, $event)">
-            {{ isCollapsed(item) ? '▸' : '▾' }}
+      <button
+        type="button"
+        *ngFor="let item of visibleTreeItems()"
+        [class.active]="item.note?.path === selectedPath()"
+        [class.child]="item.depth > 0"
+        [class.database-node]="item.kind === 'database'"
+        [class.source-node]="item.kind === 'source'"
+        [class.has-children]="item.hasChildren"
+        [style.--depth-offset]="treeIndent(item)"
+        (click)="openTreeItem(item)">
+        <span class="node-spacer" *ngIf="!item.hasChildren" aria-hidden="true"></span>
+        <span
+          class="tree-toggle"
+          *ngIf="item.hasChildren"
+          role="button"
+          tabindex="0"
+          [attr.aria-label]="isCollapsed(item) ? 'Expandir grupo de notas' : 'Cerrar grupo de notas'"
+          [attr.aria-expanded]="!isCollapsed(item)"
+          (click)="toggleCollapsed(item, $event)"
+          (keydown.enter)="toggleCollapsed(item, $event)"
+          (keydown.space)="toggleCollapsed(item, $event)">
+          {{ isCollapsed(item) ? '▸' : '▾' }}
+        </span>
+        <span class="note-content">
+          <span class="note-parent" *ngIf="item.kind === 'note' && item.depth > 2">{{ itemParentLabel(item) }}</span>
+          <span class="note-name">
+            {{ item.label }}
+            <span class="child-count" *ngIf="item.hasChildren">{{ item.childCount }}</span>
           </span>
-          <span class="note-content">
-            <span class="note-parent" *ngIf="item.depth > 0">{{ itemParentLabel(item) }}</span>
-            <span class="note-name">
-              {{ item.note.name }}
-              <span class="child-count" *ngIf="item.hasChildren">{{ item.childCount }}</span>
-            </span>
-            <span class="note-meta" *ngIf="noteSubtitle(item.note)">{{ noteSubtitle(item.note) }}</span>
-            <span class="note-children-preview" *ngIf="item.hasChildren && isCollapsed(item)">
-              Dentro: {{ childPreview(item) }}
-            </span>
+          <span class="note-meta" *ngIf="treeItemSubtitle(item)">{{ treeItemSubtitle(item) }}</span>
+          <span class="note-children-preview" *ngIf="item.hasChildren && isCollapsed(item)">
+            Dentro: {{ childPreview(item) }}
           </span>
-        </button>
-      </ng-container>
+        </span>
+      </button>
     </nav>
   </aside>
 
@@ -193,6 +192,32 @@
           <span>Tabla/Fuente de Notion</span>
           <strong>{{ selectedNote()?.source_label }}</strong>
         </div>
+        <section class="schema-panel" *ngIf="selectedSchema() as schema">
+          <div class="schema-heading">
+            <span>Mapa de tabla</span>
+            <strong>{{ schema.note_count }} notas</strong>
+          </div>
+          <div class="mapping-grid">
+            <div class="mapping-item" *ngFor="let field of selectedSchemaMappedFields()">
+              <span>{{ mappingLabel(field.key) }}</span>
+              <strong [class.unmapped]="!field.value">{{ field.value || 'Sin mapear' }}</strong>
+            </div>
+          </div>
+          <div class="schema-properties" *ngIf="schema.properties.length">
+            <p>Propiedades detectadas</p>
+            <div class="schema-property" *ngFor="let property of schema.properties">
+              <span>{{ property.name }}</span>
+              <strong>{{ property.type }} · {{ property.usage_count }}</strong>
+            </div>
+          </div>
+          <div class="schema-properties" *ngIf="selectedSchemaUnmappedProperties().length">
+            <p>Sin usar en ficha</p>
+            <div class="schema-property" *ngFor="let property of selectedSchemaUnmappedProperties()">
+              <span>{{ property.name }}</span>
+              <strong>{{ property.type }}</strong>
+            </div>
+          </div>
+        </section>
       </aside>
     </section>
 

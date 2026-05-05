@@ -83,6 +83,111 @@ def create_app() -> FastAPI:
                 return str(item.get("value", ""))
         return ""
 
+    def metadata_value_by_name(page_state: dict[str, Any], name: str | None) -> str:
+        if not name:
+            return ""
+        normalized_name = name.casefold()
+        for item in page_state.get("metadata", []):
+            if str(item.get("name", "")).casefold() == normalized_name:
+                return str(item.get("value", ""))
+        return ""
+
+    def source_schemas(state: SyncState) -> list[dict[str, Any]]:
+        pages_by_source: dict[str, list[dict[str, Any]]] = {}
+        for page_id, page in state.pages.items():
+            if state.active_page_ids and page_id not in state.active_page_ids:
+                continue
+            source_id = str(page.get("source_id", ""))
+            if not source_id:
+                continue
+            pages_by_source.setdefault(source_id, []).append(page)
+
+        source_ids = set(state.data_sources) | set(pages_by_source)
+        schemas: list[dict[str, Any]] = []
+        for source_id in source_ids:
+            source = state.data_sources.get(source_id, {})
+            pages = pages_by_source.get(source_id, [])
+            properties = source_properties(pages)
+            schemas.append(
+                {
+                    "id": source_id,
+                    "name": str(source.get("name") or source_label_from_pages(pages) or "Tabla de Notion").strip(),
+                    "note_count": len(pages),
+                    "properties": properties,
+                    "mapping": suggested_mapping(properties),
+                }
+            )
+        return sorted(schemas, key=lambda source: str(source["name"]).casefold())
+
+    def source_label_from_pages(pages: list[dict[str, Any]]) -> str:
+        for page in pages:
+            label = str(page.get("source_label", "")).strip()
+            if label:
+                return label
+        return ""
+
+    def source_properties(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        by_name: dict[str, dict[str, Any]] = {}
+        for page in pages:
+            for item in page.get("metadata", []):
+                name = str(item.get("name", "")).strip()
+                if not name:
+                    continue
+                current = by_name.setdefault(
+                    name,
+                    {"name": name, "type": str(item.get("type", "")), "usage_count": 0, "sample": ""},
+                )
+                current["usage_count"] += 1
+                value = str(item.get("value", "")).strip()
+                if value and not current["sample"]:
+                    current["sample"] = value
+        return sorted(by_name.values(), key=lambda item: str(item["name"]).casefold())
+
+    def suggested_mapping(properties: list[dict[str, Any]]) -> dict[str, str | None]:
+        return {
+            "date": mapped_property(properties, {"fecha", "date", "meeting date"}, {"date"}),
+            "notes": mapped_property(
+                properties, {"notas", "notes", "texto", "transcript", "contenido"}, {"rich_text"}, fallback_by_type=False
+            ),
+            "people": mapped_property(properties, {"personas", "people", "texto", "owner", "assignee"}, {"people"}),
+            "status": mapped_property(properties, {"estado", "status"}, {"status", "select"}),
+            "summary": mapped_property(properties, {"summary", "resumen"}, {"rich_text"}),
+            "tasks": mapped_property(
+                properties, {"tareas", "tasks", "action items", "acciones"}, {"rich_text"}, fallback_by_type=False
+            ),
+        }
+
+    def mapped_property(
+        properties: list[dict[str, Any]], names: set[str], types: set[str], fallback_by_type: bool = True
+    ) -> str | None:
+        normalized_names = {name.casefold() for name in names}
+        for item in properties:
+            if str(item.get("name", "")).casefold() in normalized_names and str(item.get("type", "")) in types:
+                return str(item["name"])
+        if not fallback_by_type:
+            return None
+        for item in properties:
+            if str(item.get("type", "")) in types:
+                return str(item["name"])
+        return None
+
+    def mapped_card(card: MeetingCard, page_state: dict[str, Any], state: SyncState) -> MeetingCard:
+        source_id = str(page_state.get("source_id", ""))
+        schema = next((item for item in source_schemas(state) if item["id"] == source_id), None)
+        mapping = schema.get("mapping", {}) if schema else {}
+        summary = card.summary or metadata_value_by_name(page_state, mapping.get("summary")) or metadata_value(
+            page_state, {"Summary", "Resumen"}
+        )
+        notes = card.notes or metadata_value_by_name(page_state, mapping.get("notes"))
+        tasks = card.tasks or parse_mapped_tasks(metadata_value_by_name(page_state, mapping.get("tasks")))
+        return MeetingCard(summary=summary, tasks=tasks, notes=notes)
+
+    def parse_mapped_tasks(raw: str) -> list[MeetingTask]:
+        if not raw.strip():
+            return []
+        parsed = parse_meeting_card(f"# Tareas\n\n## Tareas\n\n{raw.strip()}\n")
+        return parsed.tasks
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -205,6 +310,12 @@ def create_app() -> FastAPI:
                 sources.append({"id": source_id, "name": "Tabla de Notion", "note_count": count})
         return sorted(sources, key=lambda source: str(source["name"]).casefold())
 
+    @app.get("/note-sources/schema")
+    def list_note_source_schema() -> list[dict[str, Any]]:
+        config = load_config()
+        state = SyncState.load(config.state_path)
+        return source_schemas(state)
+
     @app.get("/notes/read")
     def read_note(path: str) -> dict[str, Any]:
         config = load_config()
@@ -214,12 +325,12 @@ def create_app() -> FastAPI:
         markdown = note_path.read_text(encoding="utf-8")
         card = parse_meeting_card(markdown)
         page_state = page_state_for_path(config, note_path)
-        summary = card.summary or metadata_value(page_state, {"Summary", "Resumen"})
+        card = mapped_card(card, page_state, SyncState.load(config.state_path))
         return {
             "path": str(note_path),
             "markdown": markdown,
             "card": {
-                "summary": summary,
+                "summary": card.summary,
                 "tasks": [task.__dict__ for task in card.tasks],
                 "notes": card.notes,
             },

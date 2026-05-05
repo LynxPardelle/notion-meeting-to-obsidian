@@ -3,24 +3,23 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ApiService, MeetingCard, NoteSource, NoteSummary } from './api.service';
+import { ApiService, MeetingCard, NoteSource, NoteSourceMapping, NoteSourceSchema, NoteSummary } from './api.service';
 
 type ThemePreference = 'light' | 'dark';
 type ViewMode = 'card' | 'markdown';
 
 interface NoteTreeItem {
-  note: NoteSummary;
+  kind: 'database' | 'source' | 'note';
+  note: NoteSummary | null;
+  source: NoteSource | null;
+  label: string;
+  meta: string;
   key: string;
   parentKey: string | null;
   depth: number;
   hasChildren: boolean;
   childCount: number;
   childNames: string[];
-}
-
-interface NoteSourceGroup {
-  label: string;
-  items: NoteTreeItem[];
 }
 
 @Component({
@@ -32,6 +31,7 @@ interface NoteSourceGroup {
 export class AppComponent {
   readonly notes = signal<NoteSummary[]>([]);
   readonly sources = signal<NoteSource[]>([]);
+  readonly sourceSchemas = signal<NoteSourceSchema[]>([]);
   readonly selectedSourceId = signal('');
   readonly selectedPath = signal('');
   readonly markdown = signal('');
@@ -53,16 +53,32 @@ export class AppComponent {
     return this.notes().find((note) => note.path === path) ?? null;
   });
 
-  readonly selectedMetadata = computed(() => this.selectedNote()?.metadata ?? []);
+  readonly selectedMetadata = computed(() => {
+    const summaryProperty = this.selectedSchema()?.mapping.summary;
+    return (this.selectedNote()?.metadata ?? []).filter((item) => item.name !== summaryProperty);
+  });
   readonly preview = computed(() => this.renderPreview(this.markdown()));
   readonly filteredNotes = computed(() => {
     const sourceId = this.selectedSourceId();
     return sourceId ? this.notes().filter((note) => note.source_id === sourceId) : this.notes();
   });
   readonly selectedSource = computed(() => this.sources().find((source) => source.id === this.selectedSourceId()) ?? null);
+  readonly selectedSchema = computed(() => {
+    const selectedNote = this.selectedNote();
+    const sourceId = selectedNote?.source_id || this.selectedSourceId();
+    return this.sourceSchemas().find((schema) => schema.id === sourceId) ?? null;
+  });
+  readonly selectedSchemaMappedFields = computed(() => this.schemaMappedFields(this.selectedSchema()?.mapping));
+  readonly selectedSchemaUnmappedProperties = computed(() => {
+    const schema = this.selectedSchema();
+    if (!schema) {
+      return [];
+    }
+    const mapped = new Set(Object.values(schema.mapping).filter(Boolean));
+    return schema.properties.filter((property) => !mapped.has(property.name));
+  });
   readonly treeItems = computed(() => this.buildTreeItems(this.filteredNotes()));
   readonly visibleTreeItems = computed(() => this.treeItems().filter((item) => !this.isHiddenByCollapsedAncestor(item)));
-  readonly visibleSourceGroups = computed(() => this.groupBySource(this.visibleTreeItems()));
   readonly cardDirty = computed(() => JSON.stringify(this.card()) !== JSON.stringify(this.savedCard()));
   readonly markdownDirty = computed(() => this.markdown() !== this.savedMarkdown());
 
@@ -91,6 +107,7 @@ export class AppComponent {
         this.notes.set(notes);
         this.collapsedKeys.set(this.collapsibleKeys(this.buildTreeItems(this.filteredNotes())));
         this.refreshSources();
+        this.refreshSourceSchemas();
       },
       error: (error) => this.fail(error)
     });
@@ -99,6 +116,13 @@ export class AppComponent {
   refreshSources(): void {
     this.api.listNoteSources().subscribe({
       next: (sources) => this.sources.set(sources),
+      error: (error) => this.fail(error)
+    });
+  }
+
+  refreshSourceSchemas(): void {
+    this.api.listNoteSourceSchemas().subscribe({
+      next: (schemas) => this.sourceSchemas.set(schemas),
       error: (error) => this.fail(error)
     });
   }
@@ -147,6 +171,16 @@ export class AppComponent {
 
   updateMarkdown(value: string): void {
     this.markdown.set(value);
+  }
+
+  openTreeItem(item: NoteTreeItem): void {
+    if (item.note) {
+      this.openNote(item.note);
+      return;
+    }
+    if (item.hasChildren) {
+      this.toggleCollapsedByItem(item);
+    }
   }
 
   saveCurrentView(): void {
@@ -238,14 +272,14 @@ export class AppComponent {
   }
 
   treeIndent(item: NoteTreeItem): string {
-    return `${item.depth * 18}px`;
+    return `${item.depth * 16}px`;
   }
 
   itemParentLabel(item: NoteTreeItem): string {
     if (!item.parentKey) {
       return '';
     }
-    return item.parentKey.split('/').at(-1) ?? item.parentKey;
+    return (item.parentKey.split('/').at(-1) ?? item.parentKey).replace(/^note:/, '');
   }
 
   noteSubtitle(note: NoteSummary): string {
@@ -257,17 +291,31 @@ export class AppComponent {
     return values.join(' · ');
   }
 
+  treeItemSubtitle(item: NoteTreeItem): string {
+    if (item.kind !== 'note') {
+      return item.meta;
+    }
+    return item.note ? this.noteSubtitle(item.note) : '';
+  }
+
   sourceLabel(note: NoteSummary): string {
     return note.source_label?.trim() || 'Notas sin tabla';
   }
 
-  shouldShowSourceGroups(): boolean {
-    const groups = this.visibleSourceGroups();
-    return groups.length > 1 || (groups[0]?.label ?? '') !== 'Notas sin tabla';
-  }
-
   totalNoteCount(): number {
     return this.notes().length;
+  }
+
+  mappingLabel(key: string): string {
+    const labels: Record<string, string> = {
+      date: 'Fecha',
+      notes: 'Notas',
+      people: 'Personas',
+      status: 'Estado',
+      summary: 'Resumen',
+      tasks: 'Tareas'
+    };
+    return labels[key] ?? key;
   }
 
   childPreview(item: NoteTreeItem): string {
@@ -299,6 +347,10 @@ export class AppComponent {
 
   toggleCollapsed(item: NoteTreeItem, event: Event): void {
     event.stopPropagation();
+    this.toggleCollapsedByItem(item);
+  }
+
+  private toggleCollapsedByItem(item: NoteTreeItem): void {
     const next = new Set(this.collapsedKeys());
     if (next.has(item.key)) {
       next.delete(item.key);
@@ -336,26 +388,77 @@ export class AppComponent {
   }
 
   private buildTreeItems(notes: NoteSummary[]): NoteTreeItem[] {
-    const provisional = notes.map((note, index) => {
-      const parts = this.hierarchyParts(note);
-      return {
-        note,
-        key: parts.join('/'),
-        parentKey: parts.length > 1 ? parts.slice(0, -1).join('/') : null,
-        depth: Math.max(0, parts.length - 1),
-        index
-      };
+    const sources = this.sourcesForTree(notes);
+    const databaseKey = 'database:notion';
+    const provisional: Array<NoteTreeItem & { index: number }> = [
+      {
+        kind: 'database',
+        note: null,
+        source: null,
+        label: 'Database de Notion',
+        meta: `${sources.length} tabla${sources.length === 1 ? '' : 's'} · ${notes.length} nota${notes.length === 1 ? '' : 's'}`,
+        key: databaseKey,
+        parentKey: null,
+        depth: 0,
+        hasChildren: false,
+        childCount: 0,
+        childNames: [],
+        index: 0
+      }
+    ];
+
+    sources.forEach((source, sourceIndex) => {
+      const sourceKey = this.sourceTreeKey(source.id);
+      const sourceNotes = notes.filter((note) => this.noteSourceId(note) === source.id);
+      provisional.push({
+        kind: 'source',
+        note: null,
+        source,
+        label: source.name || 'Tabla sin nombre',
+        meta: `${sourceNotes.length} nota${sourceNotes.length === 1 ? '' : 's'}`,
+        key: sourceKey,
+        parentKey: databaseKey,
+        depth: 1,
+        hasChildren: false,
+        childCount: 0,
+        childNames: [],
+        index: sourceIndex + 1
+      });
+
+      sourceNotes.forEach((note, noteIndex) => {
+        const parts = this.hierarchyParts(note);
+        const noteKey = this.noteTreeKey(sourceKey, parts);
+        provisional.push({
+          kind: 'note',
+          note,
+          source,
+          label: note.name,
+          meta: this.noteSubtitle(note),
+          key: noteKey,
+          parentKey: parts.length > 1 ? this.noteTreeKey(sourceKey, parts.slice(0, -1)) : sourceKey,
+          depth: parts.length + 1,
+          hasChildren: false,
+          childCount: 0,
+          childNames: [],
+          index: (sourceIndex + 1) * 1000 + noteIndex
+        });
+      });
     });
+
     const directChildren = new Map<string, string[]>();
     for (const item of provisional) {
       if (!item.parentKey) {
         continue;
       }
-      directChildren.set(item.parentKey, [...(directChildren.get(item.parentKey) ?? []), item.note.name]);
+      directChildren.set(item.parentKey, [...(directChildren.get(item.parentKey) ?? []), item.label]);
     }
     return provisional
       .map((item) => ({
+        kind: item.kind,
         note: item.note,
+        source: item.source,
+        label: item.label,
+        meta: item.meta,
         key: item.key,
         parentKey: item.parentKey,
         depth: item.depth,
@@ -382,22 +485,6 @@ export class AppComponent {
       return leftParts.length - rightParts.length;
     }
     return left.index - right.index;
-  }
-
-  private groupBySource(items: NoteTreeItem[]): NoteSourceGroup[] {
-    const groups: NoteSourceGroup[] = [];
-    const byLabel = new Map<string, NoteSourceGroup>();
-    for (const item of items) {
-      const label = this.sourceLabel(item.note);
-      let group = byLabel.get(label);
-      if (!group) {
-        group = { label, items: [] };
-        byLabel.set(label, group);
-        groups.push(group);
-      }
-      group.items.push(item);
-    }
-    return groups;
   }
 
   private hierarchyParts(note: NoteSummary): string[] {
@@ -447,8 +534,48 @@ export class AppComponent {
     return value.trim().toLowerCase();
   }
 
+  private sourcesForTree(notes: NoteSummary[]): NoteSource[] {
+    const selectedSourceId = this.selectedSourceId();
+    const configured = selectedSourceId
+      ? this.sources().filter((source) => source.id === selectedSourceId)
+      : this.sources();
+    const byId = new Map(configured.map((source) => [source.id, source]));
+
+    for (const note of notes) {
+      const id = this.noteSourceId(note);
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          name: this.sourceLabel(note),
+          note_count: notes.filter((candidate) => this.noteSourceId(candidate) === id).length
+        });
+      }
+    }
+
+    return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name, 'es', { sensitivity: 'base' }));
+  }
+
+  private noteSourceId(note: NoteSummary): string {
+    return note.source_id?.trim() || 'source:none';
+  }
+
+  private schemaMappedFields(mapping: NoteSourceMapping | undefined): Array<{ key: string; value: string | null }> {
+    if (!mapping) {
+      return [];
+    }
+    return Object.entries(mapping).map(([key, value]) => ({ key, value }));
+  }
+
+  private sourceTreeKey(sourceId: string): string {
+    return `database:notion/source:${sourceId}`;
+  }
+
+  private noteTreeKey(sourceKey: string, parts: string[]): string {
+    return `${sourceKey}/note:${parts.map((part) => this.normalizeTreePart(part)).join('/')}`;
+  }
+
   private collapsibleKeys(items: NoteTreeItem[]): Set<string> {
-    return new Set(items.filter((item) => item.hasChildren).map((item) => item.key));
+    return new Set(items.filter((item) => item.hasChildren && item.kind !== 'database').map((item) => item.key));
   }
 
   private loadThemePreference(): void {

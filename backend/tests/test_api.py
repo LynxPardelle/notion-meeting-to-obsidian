@@ -65,6 +65,41 @@ def test_read_note_uses_notion_summary_metadata_when_markdown_summary_is_empty(t
     assert response.json()["card"]["summary"] == "Resumen desde Notion"
 
 
+def test_read_note_uses_source_mapping_for_empty_meeting_card_fields(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    note_path = vault / "Meetings" / "Demo.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text("# Demo\n", encoding="utf-8")
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"active_page_ids":["page-1"],'
+        '"data_sources":{"source-a":{"id":"source-a","name":"Tabla principal"}},'
+        '"pages":{"page-1":{'
+        '"file_path":"' + note_path.as_posix() + '",'
+        '"source_id":"source-a",'
+        '"metadata":['
+        '{"name":"Summary","type":"rich_text","value":"Resumen desde propiedad"},'
+        '{"name":"Texto","type":"rich_text","value":"Notas largas desde la tabla"},'
+        '{"name":"Tareas","type":"rich_text","value":"- [x] Revisar API\\n- Documentar flujo"}'
+        "]"
+        "}}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/notes/read", params={"path": str(note_path)})
+
+    assert response.status_code == 200
+    assert response.json()["card"] == {
+        "summary": "Resumen desde propiedad",
+        "tasks": [
+            {"text": "Revisar API", "checked": True},
+            {"text": "Documentar flujo", "checked": False},
+        ],
+        "notes": "Notas largas desde la tabla",
+    }
+
+
 def test_list_notes_uses_synced_parent_and_source_metadata(tmp_path, monkeypatch):
     client, vault = configured_client(tmp_path, monkeypatch)
     meetings = vault / "Meetings"
@@ -121,6 +156,72 @@ def test_list_note_sources_includes_empty_data_sources(tmp_path, monkeypatch):
     assert response.json() == [
         {"id": "source-a", "name": "Tabla con notas", "note_count": 1},
         {"id": "source-b", "name": "Tabla vacia", "note_count": 0},
+    ]
+
+
+def test_list_note_source_schema_groups_properties_by_table(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"active_page_ids":["page-1","page-2"],'
+        '"data_sources":{'
+        '"source-a":{"id":"source-a","name":"Tabla principal"},'
+        '"source-b":{"id":"source-b","name":"Tabla vacia"}'
+        '},'
+        '"pages":{'
+        '"page-1":{"source_id":"source-a","source_label":"Tabla principal",'
+        '"metadata":['
+        '{"name":"Summary","type":"rich_text","value":"Resumen"},'
+        '{"name":"Texto","type":"people","value":"Oswaldo"},'
+        '{"name":"Estado","type":"status","value":"En curso"}'
+        ']},'
+        '"page-2":{"source_id":"source-a","source_label":"Tabla principal",'
+        '"metadata":['
+        '{"name":"Summary","type":"rich_text","value":"Otro resumen"},'
+        '{"name":"Fecha","type":"date","value":"2026-05-05"}'
+        ']}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/note-sources/schema")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": "source-a",
+            "name": "Tabla principal",
+            "note_count": 2,
+            "properties": [
+                {"name": "Estado", "type": "status", "usage_count": 1, "sample": "En curso"},
+                {"name": "Fecha", "type": "date", "usage_count": 1, "sample": "2026-05-05"},
+                {"name": "Summary", "type": "rich_text", "usage_count": 2, "sample": "Resumen"},
+                {"name": "Texto", "type": "people", "usage_count": 1, "sample": "Oswaldo"},
+            ],
+            "mapping": {
+                "date": "Fecha",
+                "notes": None,
+                "people": "Texto",
+                "status": "Estado",
+                "summary": "Summary",
+                "tasks": None,
+            },
+        },
+        {
+            "id": "source-b",
+            "name": "Tabla vacia",
+            "note_count": 0,
+            "properties": [],
+            "mapping": {
+                "date": None,
+                "notes": None,
+                "people": None,
+                "status": None,
+                "summary": None,
+                "tasks": None,
+            },
+        },
     ]
 
 

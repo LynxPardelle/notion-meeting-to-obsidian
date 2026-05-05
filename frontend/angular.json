@@ -16,7 +16,13 @@
             "main": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.json",
-            "assets": [],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public",
+                "output": "."
+              }
+            ],
             "styles": ["src/styles.css"],
             "scripts": []
           }
