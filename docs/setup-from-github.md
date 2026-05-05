@@ -139,6 +139,7 @@ OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true
 BIND_HOST=127.0.0.1
 FRONTEND_PORT=47863
 BACKEND_PORT=8765
+CORS_ALLOW_ORIGINS=
 ```
 
 For Docker on Windows, `HOST_OBSIDIAN_VAULT_PATH` is the important host path. Docker Compose mounts that folder into the backend container as `/vault`.
@@ -153,6 +154,7 @@ HOST_OBSIDIAN_VAULT_PATH
 unless you know you need a custom setup.
 
 `FRONTEND_PORT` controls the web app URL on your computer. `BACKEND_PORT` controls the direct API URL. Keep the defaults unless another local app is already using one of those ports.
+`CORS_ALLOW_ORIGINS` is optional and normally stays empty.
 
 ## Run With Docker
 

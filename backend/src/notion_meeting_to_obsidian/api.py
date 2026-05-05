@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -39,16 +40,30 @@ class DraftRequest(BaseModel):
     page_id: str
 
 
+def cors_origins() -> list[str]:
+    ports = {"4200", "47863", os.getenv("FRONTEND_PORT", "").strip()}
+    origins = {
+        f"http://localhost:{port}"
+        for port in ports
+        if port
+    } | {
+        f"http://127.0.0.1:{port}"
+        for port in ports
+        if port
+    }
+    origins.update(
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+        if origin.strip()
+    )
+    return sorted(origins)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Notion Meeting to Obsidian")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:4200",
-            "http://127.0.0.1:4200",
-            "http://localhost:47863",
-            "http://127.0.0.1:47863",
-        ],
+        allow_origins=cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

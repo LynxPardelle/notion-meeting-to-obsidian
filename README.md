@@ -36,6 +36,8 @@ Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with t
 
 `FRONTEND_PORT` and `BACKEND_PORT` control the ports exposed on your computer. Defaults are `47863` for the web app and `8765` for the API. Use them when another local app is already using one of those ports.
 
+`CORS_ALLOW_ORIGINS` is optional. Use it only if you need to allow an additional browser origin while developing, for example `http://127.0.0.1:4300`.
+
 ## Backend
 
 ```powershell
@@ -58,6 +60,7 @@ npm start
 ```
 
 The Angular dev server defaults to `http://127.0.0.1:4200`. Set `FRONTEND_PORT` to run it on another port. During local development, `/api` is proxied to the backend using `BACKEND_PORT`.
+`npm start` reads the project `.env` file before launching Angular, so Docker and local development can share the same port settings.
 
 ## Docker
 
