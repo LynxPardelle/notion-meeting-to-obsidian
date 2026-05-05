@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from .config import Config, ConfigError
 from .sync import MeetingSyncService
+
+
+def env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise SystemExit(f"{name} must be an integer, got {value!r}")
 
 
 def sync_command(args: argparse.Namespace) -> int:
@@ -44,8 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser.set_defaults(func=sync_command)
 
     serve_parser = subparsers.add_parser("serve", help="Run the local FastAPI server.")
-    serve_parser.add_argument("--host", default="127.0.0.1")
-    serve_parser.add_argument("--port", type=int, default=8765)
+    serve_parser.add_argument("--host", default=os.getenv("BIND_HOST", "127.0.0.1"))
+    serve_parser.add_argument("--port", type=int, default=env_int("BACKEND_PORT", 8765))
     serve_parser.add_argument("--reload", action="store_true")
     serve_parser.set_defaults(func=serve_command)
 

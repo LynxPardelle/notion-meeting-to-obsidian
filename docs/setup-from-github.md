@@ -136,6 +136,9 @@ SYNC_STATE_PATH=
 HOST_OBSIDIAN_VAULT_PATH=C:\Users\your-user\Documents\Obsidian Vault
 NOTION_SYNC_ALL_ACCESSIBLE=false
 OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true
+BIND_HOST=127.0.0.1
+FRONTEND_PORT=47863
+BACKEND_PORT=8765
 ```
 
 For Docker on Windows, `HOST_OBSIDIAN_VAULT_PATH` is the important host path. Docker Compose mounts that folder into the backend container as `/vault`.
@@ -148,6 +151,8 @@ HOST_OBSIDIAN_VAULT_PATH
 ```
 
 unless you know you need a custom setup.
+
+`FRONTEND_PORT` controls the web app URL on your computer. `BACKEND_PORT` controls the direct API URL. Keep the defaults unless another local app is already using one of those ports.
 
 ## Run With Docker
 
@@ -162,7 +167,7 @@ docker compose up --build -d
 Open the app:
 
 ```txt
-http://127.0.0.1:4200
+http://127.0.0.1:47863
 ```
 
 Backend health check:
@@ -170,6 +175,8 @@ Backend health check:
 ```txt
 http://127.0.0.1:8765/health
 ```
+
+If you changed `FRONTEND_PORT` or `BACKEND_PORT` in `.env`, use those values in the URLs. For example, `FRONTEND_PORT=4300` means `http://127.0.0.1:4300`.
 
 Expected health response:
 
@@ -253,4 +260,3 @@ Try:
 - Close and reopen Obsidian.
 - Use Obsidian's file explorer refresh.
 - Confirm the files exist in Windows Explorer under your vault's `Meetings` folder.
-
