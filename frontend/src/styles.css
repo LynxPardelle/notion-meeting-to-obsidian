@@ -176,6 +176,26 @@ button.secondary {
   text-transform: uppercase;
 }
 
+.source-label {
+  border-top: 1px solid var(--line);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 10px 0 3px;
+  overflow: hidden;
+  padding-top: 9px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.section-label + .source-label {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
 .note-list button {
   background: transparent;
   color: var(--ink);
@@ -245,6 +265,14 @@ button.secondary {
 .note-meta {
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-children-preview {
+  color: var(--accent-strong);
+  font-size: 11px;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;

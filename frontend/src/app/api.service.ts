@@ -12,6 +12,9 @@ export interface NoteSummary {
   relative_path: string;
   depth: number;
   parent: string | null;
+  parent_id: string | null;
+  source_id: string;
+  source_label: string;
 }
 
 export interface NoteMetadata {

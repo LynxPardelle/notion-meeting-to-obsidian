@@ -112,10 +112,11 @@ def create_app() -> FastAPI:
         }
         notes = []
         pages_by_path = {
-            Path(page["file_path"]).resolve(): page
-            for page in state.pages.values()
+            Path(page["file_path"]).resolve(): {"page_id": page_id, **page}
+            for page_id, page in state.pages.items()
             if page.get("file_path")
         }
+        pages_by_id = state.pages
 
         def note_sort_key(path: Path) -> tuple[str, int, str]:
             relative = display_relative_path(path.relative_to(config.meetings_dir))
@@ -129,12 +130,31 @@ def create_app() -> FastAPI:
                 return Path(*parts[:-2], parts[-1]) if len(parts) > 2 else Path(parts[-1])
             return relative
 
+        def parent_path_from_state(page_state: dict[str, Any]) -> str | None:
+            parent_id = page_state.get("parent_id")
+            if not parent_id:
+                return None
+            parts: list[str] = []
+            seen: set[str] = set()
+            while parent_id and parent_id not in seen:
+                seen.add(parent_id)
+                parent_state = pages_by_id.get(parent_id, {})
+                title = str(parent_state.get("title", "")).strip()
+                if title:
+                    parts.append(title)
+                parent_id = parent_state.get("parent_id")
+            if not parts:
+                return None
+            return str(Path(*reversed(parts)))
+
         for path in sorted(config.meetings_dir.rglob("*.md"), key=note_sort_key):
             if active_paths and path.resolve() not in active_paths:
                 continue
             relative = path.relative_to(config.meetings_dir)
             display_relative = display_relative_path(relative)
             page_state = pages_by_path.get(path.resolve(), {})
+            parent = parent_path_from_state(page_state)
+            has_synced_state = bool(page_state)
             notes.append(
                 {
                     "created_time": page_state.get("created_time", ""),
@@ -144,8 +164,18 @@ def create_app() -> FastAPI:
                     "notion_url": page_state.get("notion_url", ""),
                     "path": str(path),
                     "relative_path": str(display_relative),
-                    "depth": len(display_relative.parts) - 1,
-                    "parent": str(display_relative.parent) if display_relative.parent != Path(".") else None,
+                    "depth": page_state.get("depth", len(display_relative.parts) - 1),
+                    "parent": parent
+                    or (
+                        None
+                        if has_synced_state
+                        else str(display_relative.parent)
+                        if display_relative.parent != Path(".")
+                        else None
+                    ),
+                    "parent_id": page_state.get("parent_id"),
+                    "source_id": page_state.get("source_id", ""),
+                    "source_label": str(page_state.get("source_label", "")).strip(),
                 }
             )
         return notes

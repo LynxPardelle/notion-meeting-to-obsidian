@@ -23,6 +23,29 @@ def test_state_tracks_incremental_sync(tmp_path: Path):
     assert reloaded.pages["page-1"]["metadata"] == [{"name": "Owner", "type": "people", "value": "Ana"}]
 
 
+def test_state_tracks_parent_and_data_source_metadata(tmp_path: Path):
+    state_path = tmp_path / "state.json"
+    state = SyncState.load(state_path)
+
+    state.mark_synced(
+        "child",
+        "t1",
+        tmp_path / "Child.md",
+        "Child",
+        parent_id="parent",
+        depth=1,
+        source_id="source-1",
+        source_label="Tabla semanal",
+    )
+    state.save()
+
+    reloaded = SyncState.load(state_path)
+    assert reloaded.pages["child"]["parent_id"] == "parent"
+    assert reloaded.pages["child"]["depth"] == 1
+    assert reloaded.pages["child"]["source_id"] == "source-1"
+    assert reloaded.pages["child"]["source_label"] == "Tabla semanal"
+
+
 def test_state_tracks_active_pages(tmp_path: Path):
     state_path = tmp_path / "state.json"
     state = SyncState.load(state_path)

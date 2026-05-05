@@ -65,6 +65,36 @@ def test_read_note_uses_notion_summary_metadata_when_markdown_summary_is_empty(t
     assert response.json()["card"]["summary"] == "Resumen desde Notion"
 
 
+def test_list_notes_uses_synced_parent_and_source_metadata(tmp_path, monkeypatch):
+    client, vault = configured_client(tmp_path, monkeypatch)
+    meetings = vault / "Meetings"
+    parent_path = meetings / "Reunion de lunes" / "Reunion de lunes.md"
+    child_path = meetings / "Reunion de lunes" / "Notas internas de prueba.md"
+    child_path.parent.mkdir(parents=True)
+    parent_path.write_text("# Reunion de lunes\n", encoding="utf-8")
+    child_path.write_text("# Notas internas de prueba\n", encoding="utf-8")
+    state_path = vault / ".notion-meeting-sync" / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        '{"active_page_ids":["parent","child"],"pages":{'
+        '"parent":{"file_path":"' + parent_path.as_posix() + '","title":"Reunion de lunes","depth":0,'
+        '"source_id":"source-a","source_label":"Tabla principal"},'
+        '"child":{"file_path":"' + child_path.as_posix() + '","title":"Notas internas de prueba",'
+        '"parent_id":"parent","depth":1,"source_id":"source-a","source_label":"Tabla principal"}'
+        "}}",
+        encoding="utf-8",
+    )
+
+    response = client.get("/notes")
+
+    assert response.status_code == 200
+    child = next(item for item in response.json() if item["name"] == "Notas internas de prueba")
+    assert child["parent"] == "Reunion de lunes"
+    assert child["parent_id"] == "parent"
+    assert child["depth"] == 1
+    assert child["source_label"] == "Tabla principal"
+
+
 def test_read_note_keeps_local_markdown_summary_over_notion_metadata(tmp_path, monkeypatch):
     client, vault = configured_client(tmp_path, monkeypatch)
     note_path = vault / "Meetings" / "Demo.md"

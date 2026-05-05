@@ -15,6 +15,12 @@ interface NoteTreeItem {
   depth: number;
   hasChildren: boolean;
   childCount: number;
+  childNames: string[];
+}
+
+interface NoteSourceGroup {
+  label: string;
+  items: NoteTreeItem[];
 }
 
 @Component({
@@ -49,6 +55,7 @@ export class AppComponent {
   readonly preview = computed(() => this.renderPreview(this.markdown()));
   readonly treeItems = computed(() => this.buildTreeItems(this.notes()));
   readonly visibleTreeItems = computed(() => this.treeItems().filter((item) => !this.isHiddenByCollapsedAncestor(item)));
+  readonly visibleSourceGroups = computed(() => this.groupBySource(this.visibleTreeItems()));
   readonly cardDirty = computed(() => JSON.stringify(this.card()) !== JSON.stringify(this.savedCard()));
   readonly markdownDirty = computed(() => this.markdown() !== this.savedMarkdown());
 
@@ -230,6 +237,24 @@ export class AppComponent {
     return values.join(' · ');
   }
 
+  sourceLabel(note: NoteSummary): string {
+    return note.source_label?.trim() || 'Notas sin tabla';
+  }
+
+  shouldShowSourceGroups(): boolean {
+    const groups = this.visibleSourceGroups();
+    return groups.length > 1 || (groups[0]?.label ?? '') !== 'Notas sin tabla';
+  }
+
+  childPreview(item: NoteTreeItem): string {
+    if (!item.childNames.length) {
+      return '';
+    }
+    const visible = item.childNames.slice(0, 2).join(', ');
+    const remaining = item.childNames.length - 2;
+    return remaining > 0 ? `${visible} +${remaining}` : visible;
+  }
+
   formatTimestamp(value: string): string {
     if (!value) {
       return '';
@@ -297,12 +322,12 @@ export class AppComponent {
         index
       };
     });
-    const directChildren = new Map<string, number>();
+    const directChildren = new Map<string, string[]>();
     for (const item of provisional) {
       if (!item.parentKey) {
         continue;
       }
-      directChildren.set(item.parentKey, (directChildren.get(item.parentKey) ?? 0) + 1);
+      directChildren.set(item.parentKey, [...(directChildren.get(item.parentKey) ?? []), item.note.name]);
     }
     return provisional
       .map((item) => ({
@@ -311,7 +336,8 @@ export class AppComponent {
         parentKey: item.parentKey,
         depth: item.depth,
         hasChildren: directChildren.has(item.key),
-        childCount: directChildren.get(item.key) ?? 0,
+        childCount: directChildren.get(item.key)?.length ?? 0,
+        childNames: directChildren.get(item.key) ?? [],
         index: item.index
       }))
       .sort((left, right) => this.compareTreeItems(left, right))
@@ -332,6 +358,22 @@ export class AppComponent {
       return leftParts.length - rightParts.length;
     }
     return left.index - right.index;
+  }
+
+  private groupBySource(items: NoteTreeItem[]): NoteSourceGroup[] {
+    const groups: NoteSourceGroup[] = [];
+    const byLabel = new Map<string, NoteSourceGroup>();
+    for (const item of items) {
+      const label = this.sourceLabel(item.note);
+      let group = byLabel.get(label);
+      if (!group) {
+        group = { label, items: [] };
+        byLabel.set(label, group);
+        groups.push(group);
+      }
+      group.items.push(item);
+    }
+    return groups;
   }
 
   private hierarchyParts(note: NoteSummary): string[] {

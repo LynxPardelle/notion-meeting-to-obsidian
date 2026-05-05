@@ -26,36 +26,42 @@
 
     <nav class="note-list" aria-label="Synced notes">
       <p class="section-label">Reuniones sincronizadas</p>
-      <button
-        type="button"
-        *ngFor="let item of visibleTreeItems()"
-        [class.active]="item.note.path === selectedPath()"
-        [class.child]="item.depth > 0"
-        [class.has-children]="item.hasChildren"
-        [style.--depth-offset]="treeIndent(item)"
-        (click)="openNote(item.note)">
-        <span class="node-spacer" *ngIf="!item.hasChildren" aria-hidden="true"></span>
-        <span
-          class="tree-toggle"
-          *ngIf="item.hasChildren"
-          role="button"
-          tabindex="0"
-          [attr.aria-label]="isCollapsed(item) ? 'Expandir grupo de notas' : 'Cerrar grupo de notas'"
-          [attr.aria-expanded]="!isCollapsed(item)"
-          (click)="toggleCollapsed(item, $event)"
-          (keydown.enter)="toggleCollapsed(item, $event)"
-          (keydown.space)="toggleCollapsed(item, $event)">
-          {{ isCollapsed(item) ? '▸' : '▾' }}
-        </span>
-        <span class="note-content">
-          <span class="note-parent" *ngIf="item.depth > 0">{{ itemParentLabel(item) }}</span>
-          <span class="note-name">
-            {{ item.note.name }}
-            <span class="child-count" *ngIf="item.hasChildren">{{ item.childCount }}</span>
+      <ng-container *ngFor="let group of visibleSourceGroups()">
+        <p class="source-label" *ngIf="shouldShowSourceGroups()">{{ group.label }}</p>
+        <button
+          type="button"
+          *ngFor="let item of group.items"
+          [class.active]="item.note.path === selectedPath()"
+          [class.child]="item.depth > 0"
+          [class.has-children]="item.hasChildren"
+          [style.--depth-offset]="treeIndent(item)"
+          (click)="openNote(item.note)">
+          <span class="node-spacer" *ngIf="!item.hasChildren" aria-hidden="true"></span>
+          <span
+            class="tree-toggle"
+            *ngIf="item.hasChildren"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="isCollapsed(item) ? 'Expandir grupo de notas' : 'Cerrar grupo de notas'"
+            [attr.aria-expanded]="!isCollapsed(item)"
+            (click)="toggleCollapsed(item, $event)"
+            (keydown.enter)="toggleCollapsed(item, $event)"
+            (keydown.space)="toggleCollapsed(item, $event)">
+            {{ isCollapsed(item) ? '▸' : '▾' }}
           </span>
-          <span class="note-meta" *ngIf="noteSubtitle(item.note)">{{ noteSubtitle(item.note) }}</span>
-        </span>
-      </button>
+          <span class="note-content">
+            <span class="note-parent" *ngIf="item.depth > 0">{{ itemParentLabel(item) }}</span>
+            <span class="note-name">
+              {{ item.note.name }}
+              <span class="child-count" *ngIf="item.hasChildren">{{ item.childCount }}</span>
+            </span>
+            <span class="note-meta" *ngIf="noteSubtitle(item.note)">{{ noteSubtitle(item.note) }}</span>
+            <span class="note-children-preview" *ngIf="item.hasChildren && isCollapsed(item)">
+              Dentro: {{ childPreview(item) }}
+            </span>
+          </span>
+        </button>
+      </ng-container>
     </nav>
   </aside>
 
@@ -162,6 +168,10 @@
         <div class="metadata-item" *ngIf="selectedNote()?.relative_path">
           <span>Obsidian</span>
           <strong>{{ selectedNote()?.relative_path }}</strong>
+        </div>
+        <div class="metadata-item" *ngIf="selectedNote()?.source_label">
+          <span>Tabla/Fuente de Notion</span>
+          <strong>{{ selectedNote()?.source_label }}</strong>
         </div>
       </aside>
     </section>

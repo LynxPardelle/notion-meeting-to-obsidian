@@ -47,6 +47,8 @@ class MeetingSyncService:
             active_page_ids.append(page_id)
             parent_id = page_summary.get("_sync_parent_id")
             depth = page_summary.get("_sync_depth", 0)
+            source_id = page_summary.get("_sync_source_id", "")
+            source_label = page_summary.get("_sync_source_label", "")
             last_edited_time = page_summary.get("last_edited_time", "")
             title = extract_title(page_summary)
             subdir = self._subdir_for_page(page_summary)
@@ -84,6 +86,10 @@ class MeetingSyncService:
                 notion_url=page.get("url", ""),
                 created_time=page.get("created_time", ""),
                 metadata=notion_properties_to_metadata(page.get("properties", {})),
+                parent_id=parent_id,
+                depth=depth,
+                source_id=source_id,
+                source_label=source_label,
             )
             synced.append(SyncedNote(page_id, extract_title(page), file_path, changed=True, parent_id=parent_id, depth=depth))
 
@@ -108,7 +114,14 @@ class MeetingSyncService:
         for source_id in self.config.notion_source_ids or (self.config.notion_source_id,):
             try:
                 for page in self.notion.query_database(source_id):
-                    pages.extend(self._page_tree(page["id"], seen=seen))
+                    pages.extend(
+                        self._page_tree(
+                            page["id"],
+                            seen=seen,
+                            source_id=page.get("_sync_source_id", ""),
+                            source_label=page.get("_sync_source_label", ""),
+                        )
+                    )
             except NotionApiError as exc:
                 if exc.status == 400 and not self._database_error_means_page_source(exc):
                     raise
@@ -133,7 +146,13 @@ class MeetingSyncService:
             pages.extend(self._page_tree(root_id, seen=seen))
         return pages
 
-    def _page_tree(self, page_id: str, seen: set[str] | None = None) -> list[dict]:
+    def _page_tree(
+        self,
+        page_id: str,
+        seen: set[str] | None = None,
+        source_id: str = "",
+        source_label: str = "",
+    ) -> list[dict]:
         pages: list[dict] = []
         visited = seen if seen is not None else set()
 
@@ -145,6 +164,8 @@ class MeetingSyncService:
             page["_sync_parent_id"] = parent_id
             page["_sync_depth"] = len(ancestors)
             page["_sync_ancestor_titles"] = list(ancestors)
+            page["_sync_source_id"] = source_id
+            page["_sync_source_label"] = source_label
             child_page_blocks = [
                 block for block in self.notion.retrieve_block_children(current_page_id) if block.get("type") == "child_page"
             ]

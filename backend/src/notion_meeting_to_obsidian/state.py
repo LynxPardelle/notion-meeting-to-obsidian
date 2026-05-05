@@ -34,13 +34,21 @@ class SyncState:
         notion_url: str = "",
         created_time: str = "",
         metadata: list[dict[str, str]] | None = None,
+        parent_id: str | None = None,
+        depth: int = 0,
+        source_id: str = "",
+        source_label: str = "",
     ) -> None:
         self.pages[page_id] = {
             "created_time": created_time,
+            "depth": depth,
             "last_edited_time": last_edited_time,
             "file_path": str(file_path),
             "metadata": metadata or [],
             "notion_url": notion_url,
+            "parent_id": parent_id,
+            "source_id": source_id,
+            "source_label": source_label,
             "title": title,
         }
 

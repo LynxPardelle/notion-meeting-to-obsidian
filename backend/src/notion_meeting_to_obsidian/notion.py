@@ -58,12 +58,16 @@ class NotionClient:
         try:
             return self._query_paginated("POST", f"/databases/{database_id}/query")
         except NotionApiError as exc:
-            data_source_ids = self._multiple_data_source_ids(exc)
-            if not data_source_ids:
+            data_sources = self._database_data_sources(database_id, exc)
+            if not data_sources:
                 raise
             results: list[dict[str, Any]] = []
-            for data_source_id in data_source_ids:
-                results.extend(self.query_data_source(data_source_id))
+            for data_source in data_sources:
+                data_source_results = self.query_data_source(data_source["id"])
+                for page in data_source_results:
+                    page["_sync_source_id"] = data_source["id"]
+                    page["_sync_source_label"] = data_source["name"]
+                results.extend(data_source_results)
             return results
 
     def query_data_source(self, data_source_id: str) -> list[dict[str, Any]]:
@@ -72,6 +76,17 @@ class NotionClient:
             f"/data_sources/{data_source_id}/query",
             notion_version="2025-09-03",
         )
+
+    def retrieve_database_data_sources(self, database_id: str) -> list[dict[str, str]]:
+        data = self._request("GET", f"/databases/{database_id}", notion_version="2025-09-03")
+        data_sources = data.get("data_sources", [])
+        if not isinstance(data_sources, list):
+            return []
+        return [
+            {"id": item.get("id", ""), "name": str(item.get("name") or "Tabla de Notion").strip()}
+            for item in data_sources
+            if isinstance(item, dict) and item.get("id")
+        ]
 
     def _query_paginated(
         self,
@@ -100,6 +115,20 @@ class NotionClient:
         if not isinstance(data_source_ids, list):
             return []
         return [data_source_id for data_source_id in data_source_ids if isinstance(data_source_id, str)]
+
+    def _database_data_sources(self, database_id: str, exc: NotionApiError) -> list[dict[str, str]]:
+        data_source_ids = self._multiple_data_source_ids(exc)
+        if not data_source_ids:
+            return []
+        try:
+            data_sources = self.retrieve_database_data_sources(database_id)
+        except NotionApiError:
+            data_sources = []
+        by_id = {data_source["id"]: data_source for data_source in data_sources}
+        return [
+            by_id.get(data_source_id, {"id": data_source_id, "name": f"Tabla {index + 1}"})
+            for index, data_source_id in enumerate(data_source_ids)
+        ]
 
     def retrieve_page(self, page_id: str) -> dict[str, Any]:
         return self._request("GET", f"/pages/{page_id}")

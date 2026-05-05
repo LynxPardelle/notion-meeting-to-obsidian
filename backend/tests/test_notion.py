@@ -19,6 +19,13 @@ class MultipleDataSourceNotion(NotionClient):
                     }
                 },
             )
+        if path == "/databases/database-id":
+            return {
+                "data_sources": [
+                    {"id": "source-a", "name": "Tabla principal"},
+                    {"id": "source-b", "name": "Seguimiento"},
+                ]
+            }
         if path == "/data_sources/source-a/query":
             return {"results": [{"id": "page-a"}], "has_more": False}
         if path == "/data_sources/source-b/query":
@@ -31,6 +38,9 @@ def test_query_database_falls_back_to_child_data_sources():
 
     results = notion.query_database("database-id")
 
-    assert results == [{"id": "page-a"}, {"id": "page-b"}]
+    assert [result["id"] for result in results] == ["page-a", "page-b"]
+    assert results[0]["_sync_source_label"] == "Tabla principal"
+    assert results[1]["_sync_source_label"] == "Seguimiento"
+    assert ("/databases/database-id", "2025-09-03") in notion.queries
     assert ("/data_sources/source-a/query", "2025-09-03") in notion.queries
     assert ("/data_sources/source-b/query", "2025-09-03") in notion.queries
