@@ -6,6 +6,8 @@ Full documentation is in [docs/application-guide.md](docs/application-guide.md).
 
 For a fresh install from GitHub on another computer, follow [docs/setup-from-github.md](docs/setup-from-github.md).
 
+AI agents and contributors should start with [AGENTS.md](AGENTS.md) and the codebase notes in [docs/codebase](docs/codebase).
+
 ## Stack
 
 - Python CLI and FastAPI backend
@@ -32,7 +34,7 @@ Use `NOTION_SOURCE_IDS=id_1,id_2` when you want to sync only a selected set of N
 
 Set `NOTION_SYNC_ALL_ACCESSIBLE=true` to sync every page currently shared with the integration, using each visible top-level page as a root.
 
-`OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` is the default mirror behavior. It removes Markdown files inside the configured meetings folder when they are not part of the current Notion source tree. Keep manual notes outside that folder if they should never be touched by sync.
+`OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true` is the default mirror behavior for Notion-generated files. It removes stale Markdown files inside the configured meetings folder when they are known to belong to the sync state or contain Notion frontmatter. Manual notes without `notion_id` frontmatter are preserved, though it is still cleaner to keep personal notes outside the synced `Meetings` folder.
 
 `FRONTEND_PORT` and `BACKEND_PORT` control the ports exposed on your computer. Defaults are `47863` for the web app and `8765` for the API. Use them when another local app is already using one of those ports.
 

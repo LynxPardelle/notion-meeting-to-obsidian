@@ -249,11 +249,11 @@ Restart:
 docker compose up --build -d
 ```
 
-### Old Notes Are Deleted
+### Old Notion Notes Are Deleted
 
-This is expected inside the configured `Meetings` folder. The app mirrors the selected Notion source tree and removes Markdown files in `Meetings` that are no longer active in Notion.
+This is expected for Notion-generated files inside the configured `Meetings` folder. The app mirrors the selected Notion source tree and removes Markdown files that are no longer active in Notion when they are tracked in sync state or contain Notion frontmatter.
 
-Keep personal/manual notes outside `Meetings`.
+Manual notes without Notion frontmatter are preserved. Keeping personal notes outside `Meetings` is still recommended because that folder is primarily managed by the sync.
 
 ### Obsidian Does Not Refresh
 

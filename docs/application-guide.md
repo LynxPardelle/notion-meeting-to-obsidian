@@ -16,7 +16,7 @@ This project syncs meeting notes from Notion into an Obsidian vault as Markdown 
    - `NOTION_SYNC_ALL_ACCESSIBLE=true`: every page visible to the integration.
 4. Page trees are traversed through Notion `child_page` blocks.
 5. Each Notion page is converted to Markdown.
-6. Markdown is written to `OBSIDIAN_VAULT_PATH/OBSIDIAN_MEETINGS_FOLDER`.
+6. Markdown is written to `OBSIDIAN_VAULT_PATH/OBSIDIAN_MEETINGS_FOLDER` only when the note is new, moved, renamed, or semantically changed.
 7. The sync state is updated with page IDs, last edited timestamps, and output paths.
 8. Files that were previously synced but no longer exist in the selected Notion source tree are deleted when `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true`.
 
@@ -42,17 +42,20 @@ Meetings/
 
 When a Notion page has child pages, the parent Markdown file is written inside its own folder. This keeps Obsidian from showing a same-name folder and same-name note side by side at the root level.
 
-## Obsidian Mirror Behavior
+## Obsidian Delta And Mirror Behavior
 
-The Obsidian `Meetings` folder is treated as a strict mirror of the selected Notion source tree.
+The Obsidian `Meetings` folder is treated as a managed mirror for Notion-generated Markdown files, not as a blind delete-and-recreate target.
 
 When `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true`, the app deletes a Markdown file when all of these are true:
 
 - The file is inside the configured `Meetings` folder.
 - The file has a `.md` extension.
-- The file path is not one of the active output paths produced by the current Notion sync.
+- The file path is not one of the active output paths produced by the current Notion sync, or the file belongs to a stale synced page in state.
+- The file is known to be Notion-generated, usually because it has `notion_id` in YAML frontmatter or because it was tracked in `.notion-meeting-sync/state.json`.
 
-This means manual `.md` files should not be stored directly inside the configured `Meetings` folder. Put manual notes elsewhere in the vault if they should never be touched by the sync.
+Manual `.md` files without Notion frontmatter are left alone. It is still cleaner to keep personal notes outside `Meetings`, because that folder is primarily intended for synchronized meeting notes.
+
+The sync also avoids unnecessary writes. If Notion changes only volatile metadata such as `last_edited_time` or `synced_at`, but the rendered Markdown body and stable frontmatter are unchanged, the file is skipped and only the local state is updated.
 
 If a page moves from root to child, or from one parent to another, the old synced file is removed after the new file is written. This prevents duplicate notes such as an old root note plus the new nested note.
 
@@ -75,6 +78,10 @@ HOST_OBSIDIAN_VAULT_PATH=C:\Users\you\Documents\ObsidianVault
 SYNC_STATE_PATH=
 NOTION_SYNC_ALL_ACCESSIBLE=false
 OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true
+BIND_HOST=127.0.0.1
+FRONTEND_PORT=47863
+BACKEND_PORT=8765
+CORS_ALLOW_ORIGINS=
 ```
 
 Notes:
@@ -83,6 +90,7 @@ Notes:
 - `NOTION_SOURCE_IDS` is the recommended mode when you want precise control.
 - `HOST_OBSIDIAN_VAULT_PATH` is used by Docker Compose to mount the Windows vault path into the backend container.
 - Inside Docker, the backend sees the vault as `/vault`.
+- `FRONTEND_PORT` and `BACKEND_PORT` control the ports exposed on the host machine.
 
 ## Backend API
 
@@ -97,8 +105,11 @@ Endpoints:
 - `GET /health`: returns backend health.
 - `POST /sync?force=false`: syncs Notion into Obsidian.
 - `GET /notes`: lists Markdown files currently active in the synced state.
+- `GET /note-sources`: lists Notion tables/data sources found in state.
+- `GET /note-sources/schema`: lists detected table schemas and the app's field mapping.
 - `GET /notes/read?path=...`: reads one Markdown file from the meetings folder.
 - `POST /notes/save`: saves edited Markdown back to disk.
+- `POST /notes/card/save`: saves editable meeting-card sections back to Markdown.
 - `POST /draft`: converts one Notion page to Markdown without writing it to the vault.
 
 ## Frontend
@@ -106,7 +117,7 @@ Endpoints:
 Default URL:
 
 ```txt
-http://127.0.0.1:4200
+http://127.0.0.1:47863
 ```
 
 Main behaviors:
@@ -115,8 +126,11 @@ Main behaviors:
 - `Refresh` reloads the visible Markdown files from disk.
 - The left sidebar renders parent and child notes as a collapsible tree.
 - Tree groups load collapsed by default.
-- Selecting a note opens the Markdown editor and preview.
-- `Save` writes the edited Markdown back to the configured Obsidian file.
+- Selecting a note opens the meeting card view by default.
+- The meeting card exposes editable `Resumen`, `Tareas`, and `Notas` sections.
+- `Editar Markdown` opens the raw Markdown editor.
+- Save actions write changes back to the configured Obsidian file.
+- The properties panel adapts to the source table schema and hides duplicated mapped summary data.
 
 ## Docker
 
@@ -128,8 +142,8 @@ docker compose up --build
 
 Ports:
 
-- Frontend: `127.0.0.1:4200`
-- Backend: `127.0.0.1:8765`
+- Frontend: `127.0.0.1:${FRONTEND_PORT:-47863}`
+- Backend: `127.0.0.1:${BACKEND_PORT:-8765}`
 
 Docker Compose mounts:
 
@@ -177,6 +191,7 @@ If old files remain in Obsidian:
 - Confirm `OBSIDIAN_DELETE_STALE_SYNCED_NOTES=true`.
 - Run a forced sync after deleting or unsharing the Notion page.
 - Confirm the file is inside `OBSIDIAN_MEETINGS_FOLDER`; the sync only cleans that folder.
+- Confirm the stale file has Notion frontmatter or exists in `.notion-meeting-sync/state.json`; manual Markdown files are intentionally preserved.
 
 If Docker commands are not found on Windows:
 
