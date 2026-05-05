@@ -107,8 +107,11 @@ class MeetingSyncService:
         seen: set[str] = set()
         for source_id in self.config.notion_source_ids or (self.config.notion_source_id,):
             try:
-                pages.extend(self.notion.query_database(source_id))
+                for page in self.notion.query_database(source_id):
+                    pages.extend(self._page_tree(page["id"], seen=seen))
             except NotionApiError as exc:
+                if exc.status == 400 and not self._database_error_means_page_source(exc):
+                    raise
                 if exc.status not in {400, 404}:
                     raise
                 pages.extend(self._page_tree(source_id, seen=seen))
@@ -174,6 +177,10 @@ class MeetingSyncService:
         if not previous_path:
             return False
         return Path(previous_path).name != safe_filename(current_title)
+
+    def _database_error_means_page_source(self, exc: NotionApiError) -> bool:
+        message = str(exc).lower()
+        return "page, not a database" in message or "not a database" in message
 
     def _preserve_local_card_sections(self, markdown: str, previous_raw_path: str | None) -> str:
         if not previous_raw_path:

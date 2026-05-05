@@ -70,6 +70,26 @@ def test_sync_accepts_page_source_when_notion_reports_page_not_database(tmp_path
     assert (tmp_path / "Meetings" / "Single Meeting.md").exists()
 
 
+def test_sync_does_not_treat_database_query_validation_errors_as_page_sources(tmp_path: Path):
+    class BrokenDatabaseNotion(PageOnlyNotion):
+        def query_database(self, source_id: str):
+            raise NotionApiError("Provided ID is a database, not a page", status=400)
+
+    config = Config(
+        notion_token="secret",
+        notion_source_id="database",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+
+    try:
+        MeetingSyncService(config, notion=BrokenDatabaseNotion()).sync(force=True)
+    except NotionApiError as exc:
+        assert "database, not a page" in str(exc)
+    else:
+        raise AssertionError("Expected NotionApiError")
+
+
 class ParentPageWithChildrenNotion(PageOnlyNotion):
     def retrieve_page(self, page_id: str):
         titles = {
@@ -115,6 +135,41 @@ class ParentPageWithChildrenNotion(PageOnlyNotion):
         ]
 
 
+class DatabaseRowsWithNestedContentNotion(PageOnlyNotion):
+    def query_database(self, source_id: str):
+        return [self.retrieve_page("meeting")]
+
+    def retrieve_page(self, page_id: str):
+        titles = {
+            "meeting": "Reunion de lunes",
+            "child-page": "Notas internas de prueba",
+        }
+        return {
+            "id": page_id,
+            "url": f"https://notion.so/{page_id}",
+            "last_edited_time": f"2026-05-04T00:00:0{len(page_id)}.000Z",
+            "properties": {
+                "Name": {
+                    "type": "title",
+                    "title": [{"plain_text": titles[page_id], "annotations": {}}],
+                }
+            },
+        }
+
+    def retrieve_block_children(self, block_id: str):
+        if block_id == "meeting":
+            return [
+                {"id": "child-page", "type": "child_page", "child_page": {"title": "Notas internas de prueba"}},
+                {"id": "child-db", "type": "child_database", "child_database": {"title": "Tabla"}},
+            ]
+        return [
+            {
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"plain_text": f"Body for {block_id}", "annotations": {}}]},
+            }
+        ]
+
+
 def test_sync_page_source_recursively_syncs_child_pages_and_disambiguates_duplicate_titles(tmp_path: Path):
     config = Config(
         notion_token="secret",
@@ -146,6 +201,22 @@ def test_sync_all_accessible_pages_uses_visible_roots_and_preserves_hierarchy(tm
     assert [note.page_id for note in result.synced] == ["parent", "child-1", "grandchild", "child-2"]
     assert result.synced[1].parent_id == "parent"
     assert result.synced[1].depth == 1
+
+
+def test_sync_database_rows_recursively_syncs_child_pages_inside_rows(tmp_path: Path):
+    config = Config(
+        notion_token="secret",
+        notion_source_id="database",
+        obsidian_vault_path=tmp_path,
+        obsidian_meetings_folder="Meetings",
+    )
+
+    result = MeetingSyncService(config, notion=DatabaseRowsWithNestedContentNotion()).sync(force=True)
+
+    assert [note.page_id for note in result.synced] == ["meeting", "child-page"]
+    assert result.synced[1].parent_id == "meeting"
+    assert (tmp_path / "Meetings" / "Reunion de lunes" / "Reunion de lunes.md").exists()
+    assert (tmp_path / "Meetings" / "Reunion de lunes" / "Notas internas de prueba.md").exists()
 
 
 def test_sync_accepts_multiple_selected_page_sources(tmp_path: Path):

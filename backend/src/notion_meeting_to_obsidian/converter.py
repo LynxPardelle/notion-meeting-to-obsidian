@@ -111,6 +111,9 @@ def block_to_markdown(block: dict[str, Any], depth: int = 0) -> str:
     if block_type == "child_page":
         title = value.get("title", "Child page")
         return f"[[{title}]]"
+    if block_type == "child_database":
+        title = value.get("title", "Database")
+        return f"**Database:** {title}"
     return indent_markdown(text, depth) + suffix if text else children
 
 

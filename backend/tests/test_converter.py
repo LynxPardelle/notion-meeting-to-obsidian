@@ -108,3 +108,22 @@ def test_page_to_markdown_renders_nested_transcription_children():
     assert "### Action items" in markdown
     assert "- [ ] Review QA" in markdown
     assert "    - [ ] Review QA" not in markdown
+
+
+def test_page_to_markdown_renders_child_database_reference():
+    page = {
+        "id": "page-1",
+        "url": "https://notion.so/page-1",
+        "last_edited_time": "2026-04-28T10:00:00.000Z",
+        "properties": {
+            "Name": {
+                "type": "title",
+                "title": [{"plain_text": "Meeting", "annotations": {}}],
+            }
+        },
+    }
+    blocks = [{"id": "db-1", "type": "child_database", "child_database": {"title": "Tabla"}}]
+
+    markdown = page_to_markdown(page, blocks)
+
+    assert "**Database:** Tabla" in markdown
